@@ -132,14 +132,25 @@ const registry = PluginRegistry.fromConfig(
 2. secondment request/authorize flow, because it is the least-proven design in the spec
 3. the auditor running as a separate process with a read-only role, because an auditor with the workers' credentials is a rubber stamp
 
-## hosting: insforge now, supabase at cutover
+## hosting: insforge, and only insforge
 
-the record runs on insforge postgres. `supabase.config` is deliberately empty: `supaforge-bridge` mirrors insforge to supabase so production never becomes the place where we debug the build.
+the build runs entirely on insforge: its postgres for the record, its storage for
+artifacts, its auth for identity. no step in the build asks for a supabase
+credential, and nothing here reads one.
 
-three integration facts, all verified the hard way:
+supabase exists later as a drop-in, not as a dependency. `supaforge.config.example.json`
+is the shape that takes when the day comes: the bridge mirrors insforge to supabase
+so cutover is a config flip instead of a migration project. it is an escape hatch.
 
-1. **migration filenames** must be `<14-digit-version>_<name>.sql` and the name may not contain underscores. `0001_init.sql` is rejected; `20261031000000_init.sql` is accepted.
-2. **the sql path differs from the bridge default**. insforge cloud answers on `/api/database/advance/rawsql`; `supaforge.config.json` sets `insforge.sqlPath` accordingly.
-3. **the bridge will not start without supabase**. it exits with `missing config: supabase.url ...` rather than running in insforge-only mode.
+two integration facts, verified the hard way:
 
-and one open defect: proxying a read through the bridge to insforge cloud returns `upstream InsForge unreachable: read ECONNRESET` even though the same request with the same key succeeds against insforge directly.
+1. **migration filenames** must be `<14-digit-version>_<name>.sql` and the name may
+   not contain underscores. `0001_init.sql` is rejected; `20261031000000_init.sql`
+   is accepted, and `20261031000001_scheduler-relay.sql` needs the hyphen.
+2. **the sql endpoint is not the one the bridge expects.** insforge cloud answers raw
+   sql on `/api/database/advance/rawsql`, not `/api/database/query`. the example config
+   sets `insforge.sqlPath` accordingly.
+
+the bridge's own constraint, for when the drop-in is wired: it exits with
+`missing config: supabase.url` rather than running insforge-only. correct for its
+purpose, and the reason it never runs during the build.
