@@ -62,6 +62,8 @@ the specification itself:
 | [13-non-goals](docs/13-non-goals.md) | the things this refuses to become |
 | [14-open-questions](docs/14-open-questions.md) | unresolved, deliberately |
 | [15-references](docs/15-references.md) | what was taken from whom, and what was not |
+| [25-liveness](docs/25-liveness.md) | what keeps it running for thirty days: custody as lease, the four invariants, the second clock |
+| [26-convergence-barriers](docs/26-convergence-barriers.md) | the barrier as a query: partition maps, the gate, coverage, joins |
 | [16-durability](docs/16-durability-and-projections.md) | the record, the artifacts, and why plane and karakeep are projections |
 | [17-sandbox](docs/17-sandbox-permeability-and-convergence.md) | isolation plus permeability, the relay, and how parallel teams converge |
 | [18-a2a](docs/18-a2a-boundary.md) | inter-org comms, and why a2a is a port rather than a platform |
