@@ -59,7 +59,8 @@ the wedge is narrower than the vision: run **one** revenue-bearing surface end t
 | [14-open-questions](docs/14-open-questions.md) | unresolved, deliberately |
 | [15-references](docs/15-references.md) | what was taken from whom, and what was not |
 | [16-durability](docs/16-durability-and-projections.md) | the record, the artifacts, and why plane and karakeep are projections |
-| [backend](backend/readme.md) | the working engine: stack, plugin surface, 68 tests |
+| [17-sandbox](docs/17-sandbox-permeability-and-convergence.md) | isolation plus permeability, the relay, and how parallel teams converge |
+| [backend](backend/readme.md) | the working engine: stack, plugin surface, 98 tests |
 
 diagram: [diagrams/org-model.svg](diagrams/org-model.svg)
 

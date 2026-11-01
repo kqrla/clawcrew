@@ -80,3 +80,9 @@ a channel below a threshold yield for two consecutive cycles is archived automat
 a channel never grants authority. it produces a decision, and the decision is executed by a seat, in its home circle, under its own grants, at the class its surface requires.
 
 this is why a channel can be cross-branch without breaking the single-parent rule. the meeting is a graph. execution is a tree.
+
+## channels are in-band, crossings are out-of-band
+
+a channel is the synchronous case: seats in one place, for one question, ending in one record. most cross-team traffic is not that. it is a proposal, a source, or a signal that needs to survive a wall and land on someone's board without either team sharing a session.
+
+that is a **crossing** and a **relay**, specified in [17](17-sandbox-permeability-and-convergence.md). the split is: a channel changes a decision, a crossing moves an artifact, and neither one creates an obligation. only a handoff does that.

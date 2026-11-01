@@ -2,7 +2,7 @@
 
 the engine that enforces the spec in [`../docs`](../docs). letters before lines: this is v0.1 of the backend, and it implements the parts that are load-bearing and testable, not the whole chart.
 
-68 tests, zero failing. typecheck clean under `strict` + `noUncheckedIndexedAccess`.
+98 tests, zero failing. typecheck clean under `strict` + `noUncheckedIndexedAccess`.
 
 ## stack
 
@@ -37,13 +37,16 @@ src/domain/      pure functions. no io. this is the spec, executable.
   handoff.ts       state machine, precondition, undelivered
   objectives.ts    ledger rules, closure, drift queries
   events.ts        canonical json, hash chain, jsonl
+  relay.ts         crossings, envelopes, directional permeability, hop bounds
+  convergence.ts   partition maps, barrier, join rules, integration gate
 src/ports/       artifacts (content-addressed) and projections (plane, karakeep)
+src/jobs/        weekly projection reconciliation (drift, repair by re-push)
 src/plugins/     the extension surface (see below)
 src/store/       postgres. the only place that talks to a db
 src/server/      hono app + a demo org for clicking around
 src/cli/tick.ts  one pass: expire leases, bounce handoffs, write events
 migrations/      schema, including the immutability trigger
-test/            68 tests, no database required
+test/            98 tests, no database required
 ```
 
 ## run it
@@ -53,7 +56,7 @@ cp .env.example .env
 docker compose up -d
 npm install
 npm run migrate          # or: psql $DATABASE_URL -f migrations/0001_init.sql
-npm test                 # 68 passing, no db needed
+npm test                 # 98 passing, no db needed
 npm run dev              # http://localhost:8787
 npm run tick             # one scheduler pass
 ```
@@ -106,6 +109,10 @@ const registry = PluginRegistry.fromConfig(
 - content-addressed artifact store (filesystem; swap for minio behind three methods)
 - plane projection with idempotent upsert, and a webhook guard that refuses completion without evidence
 - karakeep indexer for sources, deliberately unable to close anything
+- crossings and relay between sandboxed circles, with rate, direction and expiry
+- convergence barrier for parallel teams: exhaustive partitions, join semantics, conflict detection
+- integration gate that refuses closure on a satisfied barrier alone
+- projection reconciliation: drift findings, repair by re-push, never a local state change
 
 ## what is not
 
