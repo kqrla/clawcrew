@@ -46,7 +46,7 @@ three conflicts are structural and recur in every run.
 
 ## starvation
 
-a rule set that favours blocking and due work can starve low-priority objectives forever. so each objective carries a **maximum interval between touches**, and an objective that goes untouched past it escalates as a scheduling failure rather than a priority decision.
+a rule set that favours blocking and due work can starve low-priority objectives forever, and the same rules that keep the queue honest are what let an org stop work it has already paid for ([09-doubling-down](../09-doubling-down/readme.md)). starvation is the priority system's version of doubling down: continuing to fund something because it is on the list. so each objective carries a **maximum interval between touches**, and an objective that goes untouched past it escalates as a scheduling failure rather than a priority decision.
 
 this is not fairness, it is the same anti-silence rule that runs through the whole design: a thing that is not moving should be visibly not moving, not quietly deprioritized. the failure of prioritization is not choosing wrong, it is choosing without anyone being able to see the choice.
 

@@ -6,18 +6,21 @@ read this folder if you want to know what the thing is *for*. read docs if you w
 
 ## the three claims
 
-everything in here reduces to three arguments, and each one is a correction of a common assumption.
+everything in here reduces to four arguments, and each one is a correction of a common assumption.
 
 **one.** a hierarchy is not a management diagram, it is an authority graph. the chart says what a seat *may* do, computed from the seats above it, and it is stored as rows so it can be diffed and reviewed. when the chart is prose, it is decoration.
 
 **two.** an organization that runs for a month without a human is not a smart agent, it is a system that stays honest while nobody watches. the hard problem is not capability. it is drift, silence, and the fact that a plausible report is cheaper to produce than a true one.
 
-**three.** work that diverges must be made to converge by evidence, not by agreement. the moment two teams can close a gap by concluding that they agree, the gap is gone and the org is measuring itself.
+**three.** an organization that maintains instead of delivering is judged continuously, by a metric, at runtime, and never by its own report. the loop is the unit of work, not the ticket.
+
+**four.** work that diverges must be made to converge by evidence, not by agreement. the moment two teams can close a gap by concluding that they agree, the gap is gone and the org is measuring itself.
 
 ## what each folder covers
 
 | folder | the question it answers |
 | --- | --- |
+| [00-dark-factory](00-dark-factory/readme.md) | what an org that iterates, ships and maintains is, versus one that manages deliverables |
 | [01-hmas](01-hmas/readme.md) | what is a hierarchical multi-agent system, and when is a hierarchy the wrong answer |
 | [02-org-chart](02-org-chart/readme.md) | who may do what, and why that is a table rather than a tree drawing |
 | [03-autonomy](03-autonomy/readme.md) | how a run survives a month without a human in it |
@@ -26,6 +29,10 @@ everything in here reduces to three arguments, and each one is a correction of a
 | [06-a2a](06-a2a/readme.md) | what crosses between agents, in what envelope, with what guarantee |
 | [07-provenance](07-provenance/readme.md) | how a third party later proves what happened |
 | [08-prioritization](08-prioritization/readme.md) | how a system with too many objectives decides what runs next |
+| [09-doubling-down](09-doubling-down/readme.md) | how an org avoids sunk cost, doubling down and scope drift, structurally |
+| [10-adversarial-qa](10-adversarial-qa/readme.md) | why an org cannot certify its own work, and what replaces the review |
+| [11-slices](11-slices/readme.md) | why no seat sees the whole picture, and what each one gets instead |
+| [12-identity-and-money](12-identity-and-money/readme.md) | how the org holds its own keys, its own money, and what it refuses to do with them |
 
 the order is not arbitrary. authority has to exist before collaboration means anything, and provenance has to exist before prioritization can be trusted, because priority without a record is just whoever spoke last.
 

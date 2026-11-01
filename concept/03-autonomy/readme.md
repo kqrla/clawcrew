@@ -34,17 +34,30 @@ every objective and every tier carries a horizon, and a child's horizon may not 
 
 a horizon is also not a target. it is the point at which the objective is due for *judgment*: met, failed, renegotiated by an ancestor, or retired. an objective that reaches its horizon without a verdict is a bug in the loop, not a task that ran long.
 
-## the human budget
+## the human budget: five a month
 
-"minimal human in the loop" is usually read as a goal. it is better read as a **budget**. the human has a fixed amount of attention, and every escalation spends it. an org that escalates twelve times a day has a human in the loop continuously, whatever the diagram says.
+"minimal human in the loop" needs a number or it means nothing. the number here is **five contacts per month, after setup**, where a contact is a summons rather than a notification.
 
-so escalation is rationed by construction:
+that definition does the work. a weekly digest is not a contact. a status update is not a contact. a message that requires the person to decide something, or that claims to have failed loudly enough that they should look, is a contact. counted this way, five a month is roughly one every six days, and it is a hard budget rather than a target.
 
-- escalation requires a decision the org cannot make, stated as a question with options, not as a status.
-- the org must say what it will do if no answer arrives, and it must be a safe default.
-- the count of open escalations is a health metric, not a queue length. a rising count means the authority model is too tight somewhere upstream.
+the consequence is a design constraint that sounds wrong until you sit with it: **the org must prefer a recoverable mistake to a question.** if the choice is between acting on a reasonable assumption and interrupting, it acts, records the assumption, and makes the action reversible. an org that asks whenever it is unsure spends the budget in the first week and then runs unsupervised while believing it is supervised.
 
-a run that spends no human attention for a month is not one that never needed a decision. it is one that made the decisions small enough, early enough, that no answer was worth blocking on.
+four things follow mechanically:
+
+- **escalation must be a question with options**, not a status. "the deploy is blocked, here are two paths with different costs" is a contact. "progress is slow" is not, and is refused by the channel rather than by etiquette.
+- **the org must state its default**, meaning what it will do if no answer arrives. the default must be safe and reversible. an escalation without a default is a hostage situation, not a decision request.
+- **non-urgent escalations batch.** anything that can wait a week waits and arrives in one digest, which is one contact instead of eleven. batching is the main tool for staying under five.
+- **the count is a health metric.** a budget that is consistently exhausted means the authority model is too tight somewhere upstream, and the fix is a widening at the root, not a faster channel.
+
+### breaking the budget
+
+there is one exception and it is narrow: **money loss, security compromise, or a legal exposure** may interrupt regardless of the budget, and must be declared as that class when it does.
+
+the exception exists because a budget without one teaches the org that a serious problem is not worth spending the month's remaining contact on. an org that hides a breach to protect its number is worse than a noisy one.
+
+### what the budget is protecting
+
+not the person's time, though it does. the budget protects the *meaning* of the channel. an escalation that always gets answered is a channel that carries information. an escalation that usually gets ignored is a log file, and once the org notices, it stops escalating and starts deciding everything itself, silently. that is the failure this number prevents.
 
 ## night shift
 

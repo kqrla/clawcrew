@@ -22,6 +22,31 @@ a system with no widening path is a system that cannot respond, because every ne
 
 the point of having exactly one path is that every case of "how did it get that permission" has one answer shape. if there are two paths, there is a class of question the audit cannot answer.
 
+## labels are display, the graph is authority
+
+teams, wings, departments, blocs: these words appear on the chart and carry no permission of their own. there is one entity, the tier, at any depth, and the labels are what a human calls a tier when describing it to another human.
+
+keeping labels out of the permission model is not pedantry. the moment "department" implies a ceiling, the org has two authority systems and they will disagree. the order is fixed: the graph grants, the label describes.
+
+labels do earn their keep in two ways. they carry **default templates**, so a new wing is provisioned with the surface set and ceilings a wing usually has, and they carry **reporting conventions**, so a person reading the chart knows roughly what a thing does without opening it.
+
+one label is genuinely structural: a **bloc** is a collaborative body that exists across the chart rather than inside a branch. it owns standards, reviews and interfaces in a vertical domain, and it is staffed by loans rather than by assignment. a payments bloc is not a department that does payments, it is the place where every department's payments work is judged against one contract.
+
+## the human's verbs
+
+the interface between a person and this org is deliberately small. every human action is one of six, and each has a typed effect that appears in the record:
+
+- **upskill** adds a surface and a standard to a seat's slice, time-boxed. it teaches a responsibility, not the org's context.
+- **loan** assigns a seat into a collaborative bloc, where its slice becomes the intersection of the bloc's surfaces and its own objective.
+- **elevate** issues a bounded permission widening, under the constraints of the section above.
+- **pause** suspends a tier's leases without dissolving it.
+- **kill** ends an objective ahead of its horizon, recording the reason.
+- **answer** responds to a specific escalation, and nothing else.
+
+right-clicking a seat to loan or upskill it is a chart edit, not a conversation. that is why it is safe to expose in a gui: it cannot do anything the human's authority could not already do, and it produces a diff before it produces an effect.
+
+the six verbs are also the answer to "what does the human actually do here". an org whose human interface is a chat box has no typed verbs, so every intervention is prose, and prose interventions are unrecordable, unreviewable, and impossible to reverse.
+
 ## matrix, without the mess
 
 real organizations are matrixed: a security specialist embedded in a product team, a designer seconded to a launch. the usual failure is that the matrix is expressed as a fuzzy second reporting line, and then nobody knows whose ceiling applies.

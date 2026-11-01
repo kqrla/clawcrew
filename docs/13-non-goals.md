@@ -37,3 +37,17 @@ seats have titles, not names, faces or backstories. the office metaphor is for l
 ## not autonomous in the ways that matter legally
 
 the entity is operated by agents; the legal person is human. contracts, filings and tax positions are drafted by seats and executed by a human or a licensed third party. anything else is a liability transfer this project will not design.
+
+## not a trading operation
+
+the org may be paid for work with fiat money and may spend within a written mandate. it does not hold, move, or speculate on instruments: no crypto rails, no tokens, no minting, no trading of anything, no treasury strategy that turns holding into a position.
+
+three reasons, in order of weight.
+
+**self-reference.** if the org's metric is its own profit and loss, it can move that metric by choosing its own bets, and measurement collapses into a mirror. revenue from a customer is external evidence. a gain on a position is the org grading its own homework, which the whole of `concept/10-adversarial-qa` exists to prevent.
+
+**irreversibility.** card rails have disputes, holds and chargebacks. chain rails do not. a system that can lose money permanently needs a human on a seconds clock, and that contradicts the entire premise of a month-long run.
+
+**accounting.** multiple revenue streams are required, and each has to be measurable separately against a statement. every stream is an objective with its own metric, its own horizon and its own kill criterion, and streams are never netted. a stream losing money inside a healthy total is scope drift in finance, and the most comfortable kind because the total looks fine.
+
+concretely: mastercard agent pay, visa intelligent commerce, and the stripe agentic commerce suite with scoped shared payment tokens are in scope as payment rails, under a mandate with a total ceiling, a per-transaction limit and an allowlisted counterparty set. payment authority is a separate permission from deploy authority and from credential custody. a settled payment is one of the few actions in the system that is both irreversible and adversarial by default, and it is treated accordingly.
