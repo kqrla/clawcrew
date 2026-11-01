@@ -1,0 +1,17 @@
+{
+  "insforge": {
+    "baseUrl": "https://w4zea3rf.eu-central.insforge.app",
+    "adminKey": "",
+    "sqlPath": "/api/database/advance/rawsql"
+  },
+  "supabase": {
+    "url": "",
+    "serviceRoleKey": "",
+    "accessToken": "",
+    "projectRef": ""
+  },
+  "bridge": {
+    "port": 7131,
+    "host": "127.0.0.1"
+  }
+}

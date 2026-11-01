@@ -131,3 +131,15 @@ const registry = PluginRegistry.fromConfig(
 1. surface registry + registration endpoint, because every other write depends on ownership existing
 2. secondment request/authorize flow, because it is the least-proven design in the spec
 3. the auditor running as a separate process with a read-only role, because an auditor with the workers' credentials is a rubber stamp
+
+## hosting: insforge now, supabase at cutover
+
+the record runs on insforge postgres. `supabase.config` is deliberately empty: `supaforge-bridge` mirrors insforge to supabase so production never becomes the place where we debug the build.
+
+three integration facts, all verified the hard way:
+
+1. **migration filenames** must be `<14-digit-version>_<name>.sql` and the name may not contain underscores. `0001_init.sql` is rejected; `20261031000000_init.sql` is accepted.
+2. **the sql path differs from the bridge default**. insforge cloud answers on `/api/database/advance/rawsql`; `supaforge.config.json` sets `insforge.sqlPath` accordingly.
+3. **the bridge will not start without supabase**. it exits with `missing config: supabase.url ...` rather than running in insforge-only mode.
+
+and one open defect: proxying a read through the bridge to insforge cloud returns `upstream InsForge unreachable: read ECONNRESET` even though the same request with the same key succeeds against insforge directly.

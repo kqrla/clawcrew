@@ -3,3 +3,22 @@ dist/
 pgdata/
 .env
 *.log
+
+# InsForge & AI agent skills
+.insforge
+.agent
+.agents
+.augment
+.claude
+.cline
+.github/copilot*
+.kilocode
+.qoder
+.qwen
+.roo
+.trae
+.windsurf
+
+# insforge project credentials (never commit)
+.env.insforge
+.env*.local
