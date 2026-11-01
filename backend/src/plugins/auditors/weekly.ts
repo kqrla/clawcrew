@@ -38,7 +38,7 @@ export function weeklyAuditor(): AuditorPlugin {
             expected: null,
             source: null,
             severity: 'integrity',
-            ownerCircle: task.ownerCircle,
+            ownerTier: task.ownerTier,
             actionRequired: 'restore the objective or reopen the task',
           });
           continue;
@@ -51,7 +51,7 @@ export function weeklyAuditor(): AuditorPlugin {
             expected: objective.target,
             source: objective.source,
             severity: 'untraceable',
-            ownerCircle: task.ownerCircle,
+            ownerTier: task.ownerTier,
             actionRequired: 'produce evidence from the declared source or reopen',
           });
           continue;
@@ -67,7 +67,7 @@ export function weeklyAuditor(): AuditorPlugin {
             expected: objective.target,
             source: objective.source,
             severity: 'drift',
-            ownerCircle: task.ownerCircle,
+            ownerTier: task.ownerTier,
             actionRequired: 'explain the gap at re-charter or revert',
           });
         }
@@ -83,7 +83,7 @@ export function weeklyAuditor(): AuditorPlugin {
             expected: null,
             source: null,
             severity: 'untraceable',
-            ownerCircle: task.ownerCircle,
+            ownerTier: task.ownerTier,
             actionRequired: 'attach an objective or move it to the exploration budget',
           });
         }
@@ -100,7 +100,7 @@ export function weeklyAuditor(): AuditorPlugin {
             expected: o.target,
             source: o.source,
             severity: 'stall',
-            ownerCircle: o.ownerCircle,
+            ownerTier: o.ownerTier,
             actionRequired: 'run the source, or retire the objective',
           });
         }
@@ -127,7 +127,7 @@ export function weeklyAuditor(): AuditorPlugin {
             expected: span,
             source: o.source,
             severity: 'drift',
-            ownerCircle: o.ownerCircle,
+            ownerTier: o.ownerTier,
             actionRequired: `cost per unit of movement is $${costPerUnit.toFixed(0)}; justify or retire`,
           });
         }

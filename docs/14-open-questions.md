@@ -28,7 +28,7 @@ a channel produces a decision, and a seat executes it under its own grants. what
 
 ## 7 · budget granularity
 
-per circle per day is simple and coarse. does a busy release week need per-shift envelopes, or does that produce so many parameters that nobody tunes them?
+per tier per day is simple and coarse. does a busy release week need per-shift envelopes, or does that produce so many parameters that nobody tunes them?
 
 ## 8 · audit sampling
 

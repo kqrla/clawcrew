@@ -16,17 +16,17 @@ async function main() {
   const store = createStore(url);
   const now = new Date().toISOString();
 
-  const expired = await store.query<{ id: string; circle: string; holder: string }>(
+  const expired = await store.query<{ id: string; tier: string; holder: string }>(
     `update lease set state = 'expired'
       where state = 'held' and expires_at < $1
-      returning id, circle, holder`,
+      returning id, tier, holder`,
     [now],
   );
 
   for (const row of expired) {
     const lease: Lease = {
       id: row.id,
-      circle: row.circle,
+      tier: row.tier,
       responsibility: 'oncall',
       holder: row.holder,
       acquiredAt: now,
@@ -39,7 +39,7 @@ async function main() {
     };
     const step = escalationFor(lease, now);
     await store.appendEvent(
-      `circle:${row.circle}`,
+      `tier:${row.tier}`,
       { type: 'lease.expired', lease: row.id, holder: row.holder, escalation: step?.kind ?? 'page_next_holder' },
       now,
     );

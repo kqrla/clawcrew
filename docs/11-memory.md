@@ -11,13 +11,13 @@ if the memory store is lost, the org loses convenience, not truth. if the record
 
 ```
 mem://org/<objective-id>          shared, objective-scoped
-mem://circle/<circle-id>          shared inside a circle
+mem://tier/<tier-id>          shared inside a tier
 mem://seat/<seat-id>              private to one seat
-mem://host/<circle-id>/<seat-id>  secondment scratch, host-owned
+mem://host/<tier-id>/<seat-id>  secondment scratch, host-owned
 mem://sensitive/<domain>          separate store, never indexed with the rest
 ```
 
-resolution order for a read: seat, host, circle, objective. first match wins, and the resolution is logged with the message that used it.
+resolution order for a read: seat, host, tier, objective. first match wins, and the resolution is logged with the message that used it.
 
 ## rules
 

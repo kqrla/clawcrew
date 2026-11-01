@@ -17,7 +17,7 @@ export interface Store {
   appendEvent(stream: string, payload: Record<string, unknown>, at: string): Promise<EventRecord>;
   claimLease(input: {
     id: string;
-    circle: string;
+    tier: string;
     responsibility: string;
     holder: string;
     acquiredAt: string;
@@ -74,11 +74,11 @@ export function createStore(connectionString: string): Store {
     },
     async claimLease(input) {
       const rows = await pool.query(
-        `insert into lease (id, circle, responsibility, holder, acquired_at, expires_at, heartbeat_ms, renewals, max_renewals, state, last_heartbeat)
+        `insert into lease (id, tier, responsibility, holder, acquired_at, expires_at, heartbeat_ms, renewals, max_renewals, state, last_heartbeat)
          values ($1, $2, $3, $4, $5, $6, $7, 0, 2, 'held', $5)
-         on conflict (circle, responsibility) where state = 'held' do nothing
+         on conflict (tier, responsibility) where state = 'held' do nothing
          returning id`,
-        [input.id, input.circle, input.responsibility, input.holder, input.acquiredAt, input.expiresAt, input.heartbeatMs],
+        [input.id, input.tier, input.responsibility, input.holder, input.acquiredAt, input.expiresAt, input.heartbeatMs],
       );
       return rows.rowCount === 1;
     },

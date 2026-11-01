@@ -14,7 +14,7 @@ import {
 const base: Objective = {
   id: 'obj.activation',
   parent: 'obj.revenue',
-  ownerCircle: 'product.onboarding',
+  ownerTier: 'product.onboarding',
   statement: 'new accounts reach first sync within 24h',
   metric: 'pct_first_sync_24h',
   source: 'sql:analytics.activation_daily',

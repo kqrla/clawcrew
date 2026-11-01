@@ -5,9 +5,9 @@
 
 
 -- ===== org =====
-create table if not exists circle (
+create table if not exists tier (
   id            text primary key,
-  parent        text references circle(id),
+  parent        text references tier(id),
   label         text not null default 'team',
   manager_seat  text,
   ceiling       jsonb not null,          -- {tools: [], spend_usd_per_day: n}
@@ -20,7 +20,7 @@ create table if not exists circle (
 create table if not exists seat (
   id            text primary key,
   title         text not null,
-  home_circle   text not null references circle(id),
+  home_tier   text not null references tier(id),
   grants        jsonb not null,
   model         jsonb not null default '{}'::jsonb,
   state         text not null default 'active' check (state in ('active','frozen','burned'))
@@ -29,7 +29,7 @@ create table if not exists seat (
 create table if not exists surface (
   id            text primary key,
   kind          text not null,
-  owner_circle  text not null references circle(id),
+  owner_tier  text not null references tier(id),
   sensitivity   text not null check (sensitivity in ('public','internal','sensitive')),
   approval_class text not null default 'a1',
   partition_key text
@@ -39,7 +39,7 @@ create table if not exists surface (
 
 create table if not exists authority_grant (
   id            text primary key,
-  subject       text not null,           -- seat:<id> or circle:<id>
+  subject       text not null,           -- seat:<id> or tier:<id>
   tool          text not null,
   scope         jsonb not null default '{}'::jsonb,
   limits        jsonb not null default '{}'::jsonb,
@@ -65,8 +65,8 @@ create table if not exists elevation (
 create table if not exists secondment (
   id                text primary key,
   seat              text not null references seat(id),
-  home_circle       text not null references circle(id),
-  host_circle       text not null references circle(id),
+  home_tier       text not null references tier(id),
+  host_tier       text not null references tier(id),
   deliverable       text not null,
   scope             jsonb not null,
   requested_by      text not null,
@@ -85,7 +85,7 @@ create table if not exists objective (
   id            text not null,
   version       int not null default 1,
   parent        text,
-  owner_circle  text not null references circle(id),
+  owner_tier  text not null references tier(id),
   statement     text not null,
   metric        text not null,
   source        text not null,
@@ -116,19 +116,19 @@ create table if not exists evidence (
 create table if not exists task (
   id            text primary key,
   objective_id  text,
-  owner_circle  text not null references circle(id),
+  owner_tier  text not null references tier(id),
   state         text not null default 'open'
                 check (state in ('open','in_progress','done','blocked','partial')),
   cost_usd      numeric not null default 0,
   completed_at  timestamptz,
   created_at    timestamptz not null default now()
 );
-create index if not exists task_no_objective on task (owner_circle) where objective_id is null;
+create index if not exists task_no_objective on task (owner_tier) where objective_id is null;
 
 -- ===== coordination =====
 create table if not exists lease (
   id             text primary key,
-  circle         text not null references circle(id),
+  tier         text not null references tier(id),
   responsibility text not null,
   holder         text not null references seat(id),
   acquired_at    timestamptz not null,
@@ -142,7 +142,7 @@ create table if not exists lease (
 );
 -- one live holder per responsibility, enforced by the database rather than by hope
 create unique index if not exists lease_one_holder
-  on lease (circle, responsibility) where state = 'held';
+  on lease (tier, responsibility) where state = 'held';
 
 create table if not exists handoff (
   id                  text primary key,
@@ -199,13 +199,13 @@ create trigger event_no_update before update or delete on event
 -- ===== projections =====
 -- effective permissions are computed in code (src/domain/authority.ts), not stored,
 -- because storing them means every reparent has to update every descendant.
-create or replace view circle_chain as
+create or replace view tier_chain as
 with recursive walk as (
   select id, parent, id as descendant, 0 as depth
-  from circle
+  from tier
   union all
   select c.id, c.parent, w.descendant, w.depth + 1
-  from circle c
+  from tier c
   join walk w on c.id = w.parent
 )
 select descendant, id as ancestor, depth from walk order by descendant, depth desc;

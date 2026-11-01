@@ -3,12 +3,12 @@
  * long-horizon decision layers from short-horizon execution layers.
  *
  * orchart had cadence but not horizon. a weekly review is not a planning window:
- * every circle in v0.2 reviewed on some cadence while committing to objectives of
+ * every tier in v0.2 reviewed on some cadence while committing to objectives of
  * any length, so a team on a one-day shift could promise a 30-day outcome it had
  * no authority to see through. that is a drift mechanism, not a scheduling detail.
  *
  * the rule below is the whole fix: commitment length must not exceed the horizon
- * of the circle that commits, and a circle must not plan longer than its parent.
+ * of the tier that commits, and a tier must not plan longer than its parent.
  */
 export type Horizon = 'shift' | 'week' | 'month' | 'quarter';
 
@@ -19,7 +19,7 @@ export const HORIZON_DAYS: Record<Horizon, number> = {
   quarter: 92,
 };
 
-export interface HorizonedCircle {
+export interface HorizonedTier {
   id: string;
   parent: string | null;
   horizon: Horizon;
@@ -27,7 +27,7 @@ export interface HorizonedCircle {
 
 export interface HorizonedObjective {
   id: string;
-  ownerCircle: string;
+  ownerTier: string;
   horizon: Horizon;
 }
 
@@ -40,15 +40,15 @@ export function narrowest(...hs: Horizon[]): Horizon {
   return hs.reduce((acc, h) => (HORIZON_DAYS[h] < HORIZON_DAYS[acc] ? h : acc));
 }
 
-export type CommitVerdict = { ok: true } | { ok: false; reason: 'objective_outlives_circle' };
+export type CommitVerdict = { ok: true } | { ok: false; reason: 'objective_outlives_tier' };
 
 /**
- * a circle may commit to an objective no longer than its own horizon.
+ * a tier may commit to an objective no longer than its own horizon.
  * shorter is always allowed: a quarter-level department can take on a week of work.
  */
-export function canCommit(circle: HorizonedCircle, objective: HorizonedObjective): CommitVerdict {
-  if (HORIZON_DAYS[objective.horizon] > HORIZON_DAYS[circle.horizon]) {
-    return { ok: false, reason: 'objective_outlives_circle' };
+export function canCommit(tier: HorizonedTier, objective: HorizonedObjective): CommitVerdict {
+  if (HORIZON_DAYS[objective.horizon] > HORIZON_DAYS[tier.horizon]) {
+    return { ok: false, reason: 'objective_outlives_tier' };
   }
   return { ok: true };
 }
@@ -57,10 +57,10 @@ export function canCommit(circle: HorizonedCircle, objective: HorizonedObjective
  * a child cannot plan longer than its parent. the reverse is fine.
  * violations are configuration defects, reported at load, never at runtime.
  */
-export function validateHorizonChain(circles: HorizonedCircle[]): string[] {
-  const byId = new Map(circles.map((c) => [c.id, c]));
+export function validateHorizonChain(tiers: HorizonedTier[]): string[] {
+  const byId = new Map(tiers.map((c) => [c.id, c]));
   const problems: string[] = [];
-  for (const c of circles) {
+  for (const c of tiers) {
     if (c.parent === null) continue;
     const parent = byId.get(c.parent);
     if (!parent) {
@@ -75,17 +75,17 @@ export function validateHorizonChain(circles: HorizonedCircle[]): string[] {
 }
 
 /**
- * the window a commitment actually gets, in days, bounded by the circle, the
+ * the window a commitment actually gets, in days, bounded by the tier, the
  * objective and every ancestor. this is what a lease or shift should be sized to.
  */
 export function effectiveWindowDays(
-  circleId: string,
-  circles: HorizonedCircle[],
+  tierId: string,
+  tiers: HorizonedTier[],
   objective: HorizonedObjective,
 ): number {
-  const byId = new Map(circles.map((c) => [c.id, c]));
+  const byId = new Map(tiers.map((c) => [c.id, c]));
   let h: Horizon = objective.horizon;
-  let cur = byId.get(circleId);
+  let cur = byId.get(tierId);
   while (cur) {
     h = narrowest(h, cur.horizon);
     cur = cur.parent === null ? undefined : byId.get(cur.parent);

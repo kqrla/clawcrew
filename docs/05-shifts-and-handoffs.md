@@ -13,7 +13,7 @@ a lease is a time-boxed, exclusive claim on a responsibility.
 ```yaml
 lease:
   id: lease.77a
-  circle: eng.platform.infra
+  tier: eng.platform.infra
   responsibility: oncall        # oncall | batch | release | review | intake
   holder: seat.infra-oncall
   acquired_at: 2026-10-31T08:00:00Z
@@ -29,14 +29,14 @@ rules:
 - the holder must heartbeat. a missed heartbeat past the grace window expires the lease.
 - expiry is an **event**, not an absence. it fires the pager for the responsibility.
 - renewal is bounded. a seat cannot hold the same responsibility forever without a rotation decision, because a seat that never rests accumulates context nobody else has.
-- a lease on a responsibility owned by another circle requires an active secondment.
+- a lease on a responsibility owned by another tier requires an active secondment.
 
 ### escalation on a missed lease
 
 ```
 lease expires
   → page the next scheduled holder            (immediate)
-  → if unclaimed in 10m: page the circle manager
+  → if unclaimed in 10m: page the tier manager
   → if unclaimed in 30m: page the parent manager
   → if unclaimed in 60m: create an a2 approval card for a human
   → if still unclaimed at 4h: suspend the responsibility and mark its
@@ -61,7 +61,7 @@ N holders, work divided by a partition key: tenant, region, file set, customer s
 
 the invariant is **no orphans**: the partition map is exhaustive, and every partition has exactly one owner. a partition with no owner is an alarm, not a gap. unlike relay, parallel mode can tolerate zero holders on a partition for a bounded window, because the work is not time-critical.
 
-convergence is a separate event. the integration gate is owned by the parent circle and refuses to close until every partition reports either a result or an explicit `not_applicable` with a reason. silence is not a result.
+convergence is a separate event. the integration gate is owned by the parent tier and refuses to close until every partition reports either a result or an explicit `not_applicable` with a reason. silence is not a result.
 
 ## handoff
 

@@ -12,7 +12,7 @@ the ledger is the set point. it is a small, versioned list of objectives, each w
 objective:
   id: obj.activation
   parent: obj.revenue
-  owner_circle: product.onboarding
+  owner_tier: product.onboarding
   statement: "new accounts reach a first successful sync within 24 hours"
   metric: pct_accounts_first_sync_24h
   source: "sql:analytics.activation_daily"      # executable, versioned
@@ -39,11 +39,11 @@ work that genuinely cannot cite one is **exploration**, and exploration is a cap
 
 no source, no objective. this single rule kills most roadmap theater, because "improve onboarding" cannot be entered.
 
-### 3. at least one metric per circle is computed outside it
+### 3. at least one metric per tier is computed outside it
 
-a circle that computes its own success can move the number without moving the objective. the metric must come from a system the circle does not write to: the product database, the billing provider, the crm, a customer survey, a third-party api.
+a tier that computes its own success can move the number without moving the objective. the metric must come from a system the tier does not write to: the product database, the billing provider, the crm, a customer survey, a third-party api.
 
-where a circle genuinely owns the only instrument, the number is marked `self_reported: true` and cannot alone satisfy a parent objective.
+where a tier genuinely owns the only instrument, the number is marked `self_reported: true` and cannot alone satisfy a parent objective.
 
 ### 4. a parent never closes on child claims
 
@@ -63,7 +63,7 @@ retiring an objective is a success. quietly continuing one nobody believes in is
 
 ## structure
 
-objectives form a tree separate from the org tree. the two connect at `owner_circle`.
+objectives form a tree separate from the org tree. the two connect at `owner_tier`.
 
 ```
 obj.revenue
@@ -73,7 +73,7 @@ obj.revenue
 └── obj.uptime            → eng.platform.infra
 ```
 
-a circle may own several. an objective has exactly one owner. shared objectives are a modeling error: split them by the metric each circle actually moves.
+a tier may own several. an objective has exactly one owner. shared objectives are a modeling error: split them by the metric each tier actually moves.
 
 ## rollup
 
@@ -102,7 +102,7 @@ evidence:
   source: "sql:analytics.activation_daily"
   value: 0.47
   computed_at: 2026-11-07T06:00:00Z
-  run_by: auditor              # not the owning circle
+  run_by: auditor              # not the owning tier
   artifact: artifact://evidence/9d2.json
 ```
 

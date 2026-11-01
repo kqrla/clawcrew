@@ -15,12 +15,12 @@ export type SurfaceKind =
 export interface ActionSurface {
   kind: SurfaceKind;
   sensitivity: Sensitivity;
-  ownerCircle: string;
+  ownerTier: string;
 }
 
 export interface Action {
   verb: string;
-  actorCircle: string;
+  actorTier: string;
   surface?: ActionSurface;
   economic?: { direction: 'in' | 'out'; amountUsd: number };
   external?: boolean;
@@ -74,9 +74,9 @@ export function classify(action: Action, config: PolicyConfig): Classification {
   ) {
     return { cls: 'a2', reason: 'spend_above_threshold', rule: 4 };
   }
-  // 5. writing to a surface another circle owns
-  if (action.surface && action.surface.ownerCircle !== action.actorCircle) {
-    return { cls: 'a2', reason: 'cross_circle_write', rule: 5 };
+  // 5. writing to a surface another tier owns
+  if (action.surface && action.surface.ownerTier !== action.actorTier) {
+    return { cls: 'a2', reason: 'cross_tier_write', rule: 5 };
   }
   // 6. ordinary writes to owned surfaces
   if (action.surface && action.write !== false) {

@@ -17,7 +17,7 @@ three reasons, in descending order of how much they cost.
 | layer | holds | owner of truth |
 | --- | --- | --- |
 | coordination | leases, handoffs, surface locks, live state | postgres |
-| record | the hash-chained event log, one stream per circle | postgres, exported |
+| record | the hash-chained event log, one stream per tier | postgres, exported |
 | artifacts | snapshots, diffs, query results, invoices | content-addressed blobs (minio) |
 | projections | a board for humans, an archive for research | plane, karakeep |
 

@@ -2,7 +2,7 @@
 
 ## why channels exist
 
-authority is a tree, so cross-branch work has no natural home. a channel is that home: a bounded space where seats from different circles can resolve something together without creating a second reporting line.
+authority is a tree, so cross-branch work has no natural home. a channel is that home: a bounded space where seats from different tiers can resolve something together without creating a second reporting line.
 
 a channel is **not** a chat room. it has a purpose, an authority limit, a protocol, an output and a cost cap. when it stops producing decisions, it is deleted.
 
@@ -77,7 +77,7 @@ a channel below a threshold yield for two consecutive cycles is archived automat
 
 ## relationship to the tree
 
-a channel never grants authority. it produces a decision, and the decision is executed by a seat, in its home circle, under its own grants, at the class its surface requires.
+a channel never grants authority. it produces a decision, and the decision is executed by a seat, in its home tier, under its own grants, at the class its surface requires.
 
 this is why a channel can be cross-branch without breaking the single-parent rule. the meeting is a graph. execution is a tree.
 

@@ -10,19 +10,19 @@ effective permission is computed from grants, intersected down the ancestor chai
 
 ## 2. permissions narrow downward, elevation is explicit
 
-a child circle's ceiling is a subset of its parent's. because blind intersection starves deep branches, widening requires a signed elevation with an issuer, a reason and an expiry.
+a child tier's ceiling is a subset of its parent's. because blind intersection starves deep branches, widening requires a signed elevation with an issuer, a reason and an expiry.
 
 **enforced by:** ceiling validation on write, and an elevation table that is queryable.
 
 ## 3. one owner per surface
 
-every repo path, database table, endpoint, domain, ad account, bank account and document has exactly one owning circle. a second owner is rejected at registration, not caught in review.
+every repo path, database table, endpoint, domain, ad account, bank account and document has exactly one owning tier. a second owner is rejected at registration, not caught in review.
 
 **enforced by:** the surface registry. registration is the only path to access.
 
 ## 4. authority is a tree, accountability is a graph
 
-one home circle per seat, always. outcomes attach to the circle that commissioned the work, not to the seat's home manager.
+one home tier per seat, always. outcomes attach to the tier that commissioned the work, not to the seat's home manager.
 
 **enforced by:** secondment records with a named deliverable and a host-side owner.
 

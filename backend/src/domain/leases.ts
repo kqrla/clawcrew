@@ -5,7 +5,7 @@ export type LeaseState = 'held' | 'released' | 'expired' | 'revoked';
 
 export interface Lease {
   id: string;
-  circle: string;
+  tier: string;
   responsibility: Responsibility;
   holder: string;
   acquiredAt: string;
@@ -62,7 +62,7 @@ export interface EscalationStep {
 /** the ladder from the spec, as data so it can be tested and tuned in one place. */
 export const ESCALATION_LADDER: EscalationStep[] = [
   { kind: 'page_next_holder', afterMs: 0, note: 'immediate' },
-  { kind: 'page_manager', afterMs: 10 * 60_000, note: 'circle manager' },
+  { kind: 'page_manager', afterMs: 10 * 60_000, note: 'tier manager' },
   { kind: 'page_parent_manager', afterMs: 30 * 60_000, note: 'parent manager' },
   { kind: 'human_approval_card', afterMs: 60 * 60_000, note: 'a2 card to a human' },
   { kind: 'suspend_responsibility', afterMs: 4 * 60 * 60_000, note: 'surfaces go read-only' },

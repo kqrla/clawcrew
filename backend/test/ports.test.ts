@@ -22,7 +22,7 @@ const card: TaskCard = {
   title: 'fix install retry',
   body: 'retries stop after the second attempt',
   objectiveId: 'obj.activation',
-  circle: 'eng.product',
+  tier: 'eng.product',
   state: 'in_progress',
 };
 

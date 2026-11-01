@@ -116,10 +116,10 @@ export interface CrossingCheck {
 }
 
 /** crossings are declared, not discovered. a typo here is a wall with no door. */
-export function validateCrossing(c: Crossing, circles: string[]): CrossingCheck {
+export function validateCrossing(c: Crossing, tiers: string[]): CrossingCheck {
   const problems: string[] = [];
-  if (!circles.includes(c.from)) problems.push(`unknown_from:${c.from}`);
-  if (!circles.includes(c.to)) problems.push(`unknown_to:${c.to}`);
+  if (!tiers.includes(c.from)) problems.push(`unknown_from:${c.from}`);
+  if (!tiers.includes(c.to)) problems.push(`unknown_to:${c.to}`);
   if (c.from === c.to) problems.push('self_crossing');
   if (c.allowedKinds.length === 0) problems.push('no_kinds');
   if (c.maxPerHour <= 0) problems.push('no_rate');

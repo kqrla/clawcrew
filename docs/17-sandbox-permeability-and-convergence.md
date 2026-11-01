@@ -23,7 +23,7 @@ most systems collapse these into "messaging" and then cannot answer who owes the
 | mechanism | moves | authored by | recorded as |
 | --- | --- | --- | --- |
 | crossing | permission | an ancestor or a peer, with expiry | a declared object |
-| relay | a message | the sending circle | an envelope with a receipt |
+| relay | a message | the sending tier | an envelope with a receipt |
 | handoff | responsibility | the sender, accepted by the receiver | a state machine |
 | secondment | a seat | requested by host, authorized by home | a scoped loan |
 
@@ -77,7 +77,7 @@ parallel teams finish at different times on different partitions and then have t
 convergence:
   id: conv.launch
   parentObjective: obj.activation
-  circles: [eng.product, brand.social, finance-ops]
+  tiers: [eng.product, brand.social, finance-ops]
   partitions:
     page-build: eng.product
     page-copy: brand.social
@@ -88,7 +88,7 @@ convergence:
 
 **the partition map is exhaustive by construction.** an unowned partition is a validation error, not a surprise at the end.
 
-**a circle may only report on a partition it owns.** this is the anti-orphan rule. without it, the fastest team quietly fills its neighbour's gap and the gap never appears as a finding.
+**a tier may only report on a partition it owns.** this is the anti-orphan rule. without it, the fastest team quietly fills its neighbour's gap and the gap never appears as a finding.
 
 **silence is not a result.** `result` needs an artifact reference. `not_applicable` needs a reason and counts as resolved. `blocked` is a report that does not resolve anything, which is the distinction the barrier is built on.
 
@@ -105,7 +105,7 @@ barrier satisfied  AND  parent metric measured  →  can close
 
 the barrier says the work came in. the parent metric says the work mattered. this is the same rule as the ledger, one level down: a parent objective cannot be satisfied by its children agreeing with each other.
 
-**divergence is a conflict, not a merge.** if two circles report results that touch the same surface, `conflicts()` returns the surface, the circles and their artifacts. last-write-wins is not a merge strategy, it is a coin flip with a git history. the conflict routes to the parent circle's manager.
+**divergence is a conflict, not a merge.** if two tiers report results that touch the same surface, `conflicts()` returns the surface, the tiers and their artifacts. last-write-wins is not a merge strategy, it is a coin flip with a git history. the conflict routes to the parent tier's manager.
 
 **deadlines produce findings.** `stall()` turns a missed convergence into an overdue row with the missing and blocked partitions named, which is the only form of "we're behind" that survives a quiet week.
 

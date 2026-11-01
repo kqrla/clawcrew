@@ -2,24 +2,27 @@
 
 ## one entity
 
-there is no department type, no team type and no seat type in the engine. there is a **circle**, and there is a **seat** inside it. depth is unbounded.
+there is no department type, no team type and no seat type in the engine. there is a **tier**, and there is a **seat** inside it. depth is unbounded.
 
-"department", "division", "bloc", "team", "pod" and "squad" are labels a human puts on a circle for display. the engine reads them only to pick an icon. nothing in authority, budgeting or scheduling depends on the label.
+"department", "division", "bloc", "team", "pod" and "squad" are labels a human puts on a tier for display. the engine reads them only to pick an icon. nothing in authority, budgeting or scheduling depends on the label.
 
 this is deliberate. a model with fixed tiers cannot express a department containing blocs containing teams, and it cannot survive a reorganization, which is the normal state of a young company.
 
-## circle
+the shape is a pyramid. each tier is the apex of the pyramid beneath it, and the root tier is the whole org. authority narrows as you descend, so the pyramid is load-bearing rather than decorative: what a seat may do is the intersection of every tier above it.
+
+
+## tier
 
 ```yaml
-circle:
+tier:
   id: eng.platform.infra          # dotted path, stable, never reused
   parent: eng.platform            # exactly one, or null for the root
   label: team                     # display only
-  manager: seat.infra-lead        # a seat, or null for a circle with no members
-  members:                        # seats and child circles, mixed
+  manager: seat.infra-lead        # a seat, or null for a tier with no members
+  members:                        # seats and child tiers, mixed
     - seat.ci
     - seat.secrets
-    - circle.eng.platform.infra.oncall
+    - tier.eng.platform.infra.oncall
   surfaces:                       # owned, not merely used
     - repo:infra/*
     - cloud:prod-us-east
@@ -46,7 +49,7 @@ circle:
 seat:
   id: seat.infra-lead
   title: platform lead            # a role title, never a person's name
-  home_circle: eng.platform.infra # exactly one
+  home_tier: eng.platform.infra # exactly one
   grants:
     tools: [git.write, ci.run, cloud.deploy.staging]
     spend_usd_per_day: 10
@@ -54,7 +57,7 @@ seat:
   badge: badge.7f3a
 ```
 
-a seat does not own surfaces. the circle does. a seat acts on behalf of its circle, which is why moving a seat between circles changes what it can do without editing the seat.
+a seat does not own surfaces. the tier does. a seat acts on behalf of its tier, which is why moving a seat between tiers changes what it can do without editing the seat.
 
 ## surface
 
@@ -63,7 +66,7 @@ surface:
   id: repo:infra/*
   kind: repo_path        # repo_path | db_table | endpoint | domain | ad_account
                          # | bank_account | document | queue | secret_ref
-  owner_circle: eng.platform.infra
+  owner_tier: eng.platform.infra
   sensitivity: internal  # public | internal | sensitive
   approval_class: a1     # see 03
   partition_key: path    # optional, for parallel work division
@@ -73,13 +76,13 @@ surface:
 
 these are write-time validations, not documentation.
 
-1. **single parent.** a circle has exactly one parent.
-2. **acyclic.** no circle is its own ancestor.
-3. **one home.** a seat belongs to exactly one home circle. it may be seconded elsewhere; it may not be homed twice.
-4. **one owner.** a surface has exactly one owning circle.
+1. **single parent.** a tier has exactly one parent.
+2. **acyclic.** no tier is its own ancestor.
+3. **one home.** a seat belongs to exactly one home tier. it may be seconded elsewhere; it may not be homed twice.
+4. **one owner.** a surface has exactly one owning tier.
 5. **narrowing.** `child.ceiling ⊆ parent.ceiling` on every write.
-6. **no self-management.** a seat cannot be the manager of a circle it is contained by, at any depth.
-7. **burned means empty.** a burned circle holds no grants, no leases, no secrets, and cannot be a secondment host.
+6. **no self-management.** a seat cannot be the manager of a tier it is contained by, at any depth.
+7. **burned means empty.** a burned tier holds no grants, no leases, no secrets, and cannot be a secondment host.
 
 invariant 5 is the one that produces the starvation problem in deep trees. the answer is elevation grants, not a weaker invariant. see [03-authority](03-authority.md).
 
@@ -95,7 +98,7 @@ guidance:
 - **3 levels**: the default. root, function, team.
 - **4+ levels**: justified only when a subtree has genuinely different credential boundaries, not merely different subject matter.
 
-if two circles have the same ceiling, the same surfaces and the same objectives, they are one circle with a bigger span.
+if two tiers have the same ceiling, the same surfaces and the same objectives, they are one tier with a bigger span.
 
 ## what a manager does
 
@@ -145,15 +148,15 @@ root (ceo)
 
 note that `design` sits under `social` but works for `eng.launch`. its authority to act there comes from a secondment, and the deliverable is owned by the launch team's manager. the home manager owns the seat's standing permissions and conduct, not the launch outcome. that is the whole matrix solution; see [04-secondments](04-secondments.md).
 
-## circles that contain only circles
+## tiers that contain only tiers
 
-allowed, and sometimes correct: a division holding three teams and no direct workers. the manager of such a circle is a genuine manager under the cost test, because its job is to allocate budget and arbitrate between teams.
+allowed, and sometimes correct: a division holding three teams and no direct workers. the manager of such a tier is a genuine manager under the cost test, because its job is to allocate budget and arbitrate between teams.
 
-a circle containing only circles and no objectives is not allowed. it is a folder.
+a tier containing only tiers and no objectives is not allowed. it is a folder.
 
 ## reorganization
 
-moving a circle changes the effective permissions of every seat underneath it, in one write. this is the point of computing authority by intersection rather than storing it per seat.
+moving a tier changes the effective permissions of every seat underneath it, in one write. this is the point of computing authority by intersection rather than storing it per seat.
 
 a reparent must:
 

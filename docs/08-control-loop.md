@@ -6,7 +6,7 @@ a long-running organization needs three tempos, and they must be owned by differ
 
 | clock | cadence | owner | question |
 | --- | --- | --- | --- |
-| shift | minutes to hours | the circle | what is happening now |
+| shift | minutes to hours | the tier | what is happening now |
 | weekly | 7 days | the auditor | is what we claim actually true |
 | monthly | 30 days | the board (human) | is this still worth pursuing |
 
@@ -18,13 +18,13 @@ the only design rule worth repeating here: **silence must be an event**. a lease
 
 ## weekly clock: the audit
 
-one circle, one job: compare what the org said to what is measurably true. it executes no work, owns no surface and cannot close a task.
+one tier, one job: compare what the org said to what is measurably true. it executes no work, owns no surface and cannot close a task.
 
 ### isolation requirements
 
 - **separate credentials** from the workers, read-only against primary sources. same model is acceptable; same identity is not.
 - **out of band.** the audit reads sources directly, not through the workers' reporting layer.
-- **no self-audit.** a circle that produced the work may not be the circle that audits it, at any depth. this includes the root.
+- **no self-audit.** a tier that produced the work may not be the tier that audits it, at any depth. this includes the root.
 - **sampled, not exhaustive.** audit a rotating sample of completed tasks each week rather than everything monthly. sampling keeps cost flat and catches systemic patterns; exhaustive monthly audits become a rubber stamp.
 
 ### the three questions
@@ -59,7 +59,7 @@ finding:
   delta: -0.13
   source: "sql:analytics.activation_daily"
   severity: drift           # info | drift | untraceable | stall | integrity
-  owner_circle: product.onboarding
+  owner_tier: product.onboarding
   action_required: "explain gap at next re-charter or revert"
   status: open
 ```
@@ -93,7 +93,7 @@ the four decisions:
 
 - retire, continue or re-target each objective
 - approve or reject elevations that want to become permanent
-- move budget between circles
+- move budget between tiers
 - name one thing the org should stop doing
 
 the last one is the hardest and the most valuable. a re-charter that only adds is not a re-charter.
@@ -102,12 +102,12 @@ the last one is the hardest and the most valuable. a re-charter that only adds i
 
 with no human in the loop, spend is the only thing that naturally throttles the org.
 
-- every circle has an envelope: tokens, money, wall clock and concurrent tasks.
-- exhaustion is a **legitimate terminal state**, not a failure. a circle that runs out stops and reports.
-- a circle may not borrow from a sibling. it may request from its parent, which is a logged decision.
+- every tier has an envelope: tokens, money, wall clock and concurrent tasks.
+- exhaustion is a **legitimate terminal state**, not a failure. a tier that runs out stops and reports.
+- a tier may not borrow from a sibling. it may request from its parent, which is a logged decision.
 - running out must never cause a cheaper, unverified path to be taken. the runtime refuses degraded-mode execution rather than allowing it.
 
-this is why budgets are on circles and not on seats. a seat's budget is a view of its circle's remaining envelope.
+this is why budgets are on tiers and not on seats. a seat's budget is a view of its tier's remaining envelope.
 
 ## exploration quota
 
@@ -115,7 +115,7 @@ self-direction needs room to notice things, and that room is exactly where scope
 
 resolve it with a hard allocation:
 
-- **10 to 15 percent** of each circle's budget is exploration.
+- **10 to 15 percent** of each tier's budget is exploration.
 - exploration output is a **proposal**, never a production change.
 - proposals go to the objective ledger as `proposed`, and are accepted or rejected at re-charter.
 - exploration that produces no proposal in a cycle loses the allocation for the next cycle.

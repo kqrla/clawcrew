@@ -14,7 +14,7 @@ import {
 const base: Convergence = {
   id: 'conv.launch',
   parentObjective: 'obj.activation',
-  circles: ['eng.product', 'brand.social', 'finance-ops'],
+  tiers: ['eng.product', 'brand.social', 'finance-ops'],
   partitions: {
     'page-build': 'eng.product',
     'page-copy': 'brand.social',
@@ -25,8 +25,8 @@ const base: Convergence = {
   reports: [],
 };
 
-const ok = (circle: string, partition: string, extra: Partial<Report> = {}): Report => ({
-  circle,
+const ok = (tier: string, partition: string, extra: Partial<Report> = {}): Report => ({
+  tier,
   partition,
   outcome: 'result',
   artifactRef: `artifact://sha256:${'a'.repeat(64)}`,
@@ -39,7 +39,7 @@ describe('convergence declaration', () => {
   it('requires an exhaustive partition map and a participant who owns something', () => {
     const bad = validateConvergence({
       ...base,
-      circles: [...base.circles, 'seat.hanger-on'],
+      tiers: [...base.tiers, 'seat.hanger-on'],
       partitions: { 'page-build': 'eng.product', orphan: 'ghost' },
     });
     expect(bad).toContain('owner_not_a_participant:orphan:ghost');
@@ -136,7 +136,7 @@ describe('divergence', () => {
     expect(conflicts(c)).toEqual([
       {
         surface: 'repo:site/pricing',
-        circles: ['brand.social', 'eng.product'],
+        tiers: ['brand.social', 'eng.product'],
         artifacts: [`artifact://sha256:${'a'.repeat(64)}`],
       },
     ]);

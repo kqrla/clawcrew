@@ -53,7 +53,7 @@ export interface Finding {
   expected: number | null;
   source: string | null;
   severity: Severity;
-  ownerCircle: string;
+  ownerTier: string;
   actionRequired: string;
   status: 'open' | 'acknowledged' | 'closed';
 }
@@ -69,7 +69,7 @@ export interface AuditInput {
 export interface TaskRow {
   id: string;
   objectiveId: string | null;
-  ownerCircle: string;
+  ownerTier: string;
   state: 'open' | 'in_progress' | 'done' | 'blocked';
   costUsd: number;
   completedAt?: string;
@@ -78,7 +78,7 @@ export interface TaskRow {
 
 export interface ObjectiveRow {
   id: string;
-  ownerCircle: string;
+  ownerTier: string;
   metric: string;
   source: string;
   baseline: number;

@@ -37,8 +37,8 @@ const env: Envelope = {
 };
 
 const ctx = {
-  senderCircle: 'brand',
-  receivingCircle: 'eng',
+  senderTier: 'brand',
+  receivingTier: 'eng',
   now: '2026-11-01T01:00:00Z',
   perHourCount: 0,
   alreadySeen: false,
@@ -54,7 +54,7 @@ describe('agent card', () => {
     expect(card.skills.map((s) => s.id)).toEqual(['relay.artifact', 'relay.proposal']);
   });
 
-  it('publishes nothing about where the circle sits in the chart', () => {
+  it('publishes nothing about where the tier sits in the chart', () => {
     const card = cardFor({
       title: 'engineering',
       endpoint: 'https://eng.example.com/a2a',
@@ -86,8 +86,8 @@ describe('wire round-trip', () => {
 
   it('round-trips without losing the reference or the dedupe key', () => {
     const back = messageToEnvelope(envelopeToMessage(env), {
-      senderCircle: 'brand',
-      receivingCircle: 'eng',
+      senderTier: 'brand',
+      receivingTier: 'eng',
       now: ctx.now,
     });
     expect(back.ok).toBe(true);
@@ -111,7 +111,7 @@ describe('inbound is untrusted', () => {
     expect(r.state).toBe('accepted');
   });
 
-  it('refuses a message from a circle with no crossing, however well-formed', () => {
+  it('refuses a message from a tier with no crossing, however well-formed', () => {
     const r = acceptInbound(envelopeToMessage(env), [], ctx);
     expect(r).toEqual({ state: 'rejected', reason: 'no_crossing' });
   });

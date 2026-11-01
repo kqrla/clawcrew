@@ -58,12 +58,12 @@ describe('weekly auditor', () => {
     now: '2026-11-07T06:00:00Z',
     week: '2026-W45',
     tasks: [
-      { id: 't1', objectiveId: null, ownerCircle: 'brand', state: 'in_progress', costUsd: 2 },
-      { id: 't2', objectiveId: 'obj.activation', ownerCircle: 'product', state: 'done', costUsd: 40, completedAt: '2026-11-06T00:00:00Z' },
+      { id: 't1', objectiveId: null, ownerTier: 'brand', state: 'in_progress', costUsd: 2 },
+      { id: 't2', objectiveId: 'obj.activation', ownerTier: 'product', state: 'done', costUsd: 40, completedAt: '2026-11-06T00:00:00Z' },
     ],
     objectives: [
-      { id: 'obj.activation', ownerCircle: 'product', metric: 'pct', source: 'sql:a', baseline: 0.31, target: 0.55, status: 'active', deadline: '2026-12-15' },
-      { id: 'obj.dark', ownerCircle: 'product', metric: 'pct', source: 'sql:b', baseline: 0.1, target: 0.5, status: 'active', deadline: '2026-12-15' },
+      { id: 'obj.activation', ownerTier: 'product', metric: 'pct', source: 'sql:a', baseline: 0.31, target: 0.55, status: 'active', deadline: '2026-12-15' },
+      { id: 'obj.dark', ownerTier: 'product', metric: 'pct', source: 'sql:b', baseline: 0.1, target: 0.5, status: 'active', deadline: '2026-12-15' },
     ],
     evidence: [{ objective: 'obj.activation', source: 'sql:a', value: 0.34, computedAt: '2026-11-07T05:00:00Z', runBy: 'auditor' }],
   };

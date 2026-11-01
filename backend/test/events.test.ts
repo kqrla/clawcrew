@@ -7,7 +7,7 @@ describe('event log', () => {
   });
 
   it('chains events with a stable hash', () => {
-    const e1 = append(null, { type: 'circle.created', id: 'eng' }, '2026-11-01T00:00:00Z');
+    const e1 = append(null, { type: 'tier.created', id: 'eng' }, '2026-11-01T00:00:00Z');
     const e2 = append(e1, { type: 'seat.hired', id: 'seat.ci' }, '2026-11-01T00:01:00Z');
     expect(e1.prevHash).toBe(GENESIS);
     expect(e2.prevHash).toBe(e1.hash);

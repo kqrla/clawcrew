@@ -76,7 +76,7 @@ const SKILLS: Record<EnvelopeKind, AgentSkill> = {
  * outsiders can read, so it must be narrowed before it is generated:
  *
  *   - skills are derived from the crossings that were actually authorized,
- *     so the card cannot advertise a capability the circle cannot exercise
+ *     so the card cannot advertise a capability the tier cannot exercise
  *   - no parent, no siblings, no objectives, no grants, no seat ids.
  *     the card says what this endpoint will accept, never where it sits.
  */
@@ -141,18 +141,18 @@ export type InboundResult =
  */
 export function messageToEnvelope(
   msg: A2AMessage,
-  ctx: { senderCircle: string; receivingCircle: string; now: string },
+  ctx: { senderTier: string; receivingTier: string; now: string },
 ): InboundResult {
   const dataPart = msg.parts.find((p) => p.data?.orchart);
   const raw = dataPart?.data?.orchart as Record<string, unknown> | undefined;
   if (!raw) return { ok: false, reason: 'missing_orchart_data_part' };
 
   const declared = typeof raw.from === 'string' ? raw.from : undefined;
-  if (declared && declared !== ctx.senderCircle) {
+  if (declared && declared !== ctx.senderTier) {
     return { ok: false, reason: `sender_mismatch:${declared}` };
   }
-  if (typeof raw.to === 'string' && raw.to !== ctx.receivingCircle) {
-    return { ok: false, reason: 'addressed_to_another_circle' };
+  if (typeof raw.to === 'string' && raw.to !== ctx.receivingTier) {
+    return { ok: false, reason: 'addressed_to_another_tier' };
   }
 
   const kind = raw.kind as EnvelopeKind | undefined;
@@ -160,8 +160,8 @@ export function messageToEnvelope(
 
   const envelope: Envelope = {
     id: msg.messageId,
-    from: ctx.senderCircle,
-    to: ctx.receivingCircle,
+    from: ctx.senderTier,
+    to: ctx.receivingTier,
     kind,
     subject: String(raw.subject ?? ''),
     payloadRef: String(raw.payloadRef ?? ''),
@@ -185,7 +185,7 @@ export type InboundAcceptance =
 export function acceptInbound(
   msg: A2AMessage,
   crossings: Crossing[],
-  ctx: { senderCircle: string; receivingCircle: string; now: string; perHourCount: number; alreadySeen: boolean },
+  ctx: { senderTier: string; receivingTier: string; now: string; perHourCount: number; alreadySeen: boolean },
 ): InboundAcceptance {
   const parsed = messageToEnvelope(msg, ctx);
   if (!parsed.ok) return { state: 'rejected', reason: parsed.reason };

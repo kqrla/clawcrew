@@ -11,7 +11,7 @@ import {
 
 const lease: Lease = {
   id: 'lease.1',
-  circle: 'eng.platform.infra',
+  tier: 'eng.platform.infra',
   responsibility: 'oncall',
   holder: 'seat.infra',
   acquiredAt: '2026-11-01T08:00:00Z',

@@ -9,7 +9,7 @@ export interface TaskCard {
   title: string;
   body: string;
   objectiveId: string | null;
-  circle: string;
+  tier: string;
   state: 'open' | 'in_progress' | 'done' | 'blocked';
   evidenceRef?: string;
 }

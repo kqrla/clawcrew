@@ -2,7 +2,7 @@
 
 the engine that enforces the spec in [`../docs`](../docs). letters before lines: this is v0.1 of the backend, and it implements the parts that are load-bearing and testable, not the whole chart.
 
-122 tests, zero failing. typecheck clean under `strict` + `noUncheckedIndexedAccess`.
+135 tests, zero failing. typecheck clean under `strict` + `noUncheckedIndexedAccess`.
 
 ## stack
 
@@ -46,7 +46,7 @@ src/store/       postgres. the only place that talks to a db
 src/server/      hono app + a demo org for clicking around
 src/cli/tick.ts  one pass: expire leases, bounce handoffs, write events
 migrations/      schema, including the immutability trigger
-test/            122 tests, no database required
+test/            135 tests, no database required
 ```
 
 ## run it
@@ -65,7 +65,7 @@ npm run tick             # one scheduler pass
 curl localhost:8787/seats/seat.content/authority
 curl -X POST localhost:8787/policy/evaluate \
   -H 'content-type: application/json' \
-  -d '{"verb":"payout.send","actorCircle":"fin","economic":{"direction":"out","amountUsd":5}}'
+  -d '{"verb":"payout.send","actorTier":"fin","economic":{"direction":"out","amountUsd":5}}'
 ```
 
 ## the plugin surface
@@ -76,7 +76,7 @@ this is the part that matters for self-direction. nothing in `src/domain` import
 | --- | --- | --- |
 | `objective_source` | how a metric is computed (`sql:`, `http:`, `git:`, `run:`) | the ledger |
 | `auditor` | what the weekly audit asks and how it scores | the state machine |
-| `trigger` | what wakes a circle (cron, webhook, event, human) | leases |
+| `trigger` | what wakes a tier (cron, webhook, event, human) | leases |
 | `tool_adapter` | what tools exist, scoped by grant | the policy gate |
 | `memory_store` | where derived memory lives | the record |
 | `model_router` | which model serves which seat and stage | everything |
@@ -109,7 +109,7 @@ const registry = PluginRegistry.fromConfig(
 - content-addressed artifact store (filesystem; swap for minio behind three methods)
 - plane projection with idempotent upsert, and a webhook guard that refuses completion without evidence
 - karakeep indexer for sources, deliberately unable to close anything
-- crossings and relay between sandboxed circles, with rate, direction and expiry
+- crossings and relay between sandboxed tiers, with rate, direction and expiry
 - convergence barrier for parallel teams: exhaustive partitions, join semantics, conflict detection
 - integration gate that refuses closure on a satisfied barrier alone
 - projection reconciliation: drift findings, repair by re-push, never a local state change

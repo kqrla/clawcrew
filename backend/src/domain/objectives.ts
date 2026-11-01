@@ -4,7 +4,7 @@ export type ObjectiveStatus = 'active' | 'met' | 'failed' | 'retired' | 'superse
 export interface Objective {
   id: string;
   parent: string | null;
-  ownerCircle: string;
+  ownerTier: string;
   statement: string;
   metric: string;
   /** executable reference. sql: | http: | git: | run: */
@@ -24,7 +24,7 @@ export interface Evidence {
   source: string;
   value: number;
   computedAt: string;
-  /** the auditor runs evidence, not the owning circle, wherever possible */
+  /** the auditor runs evidence, not the owning tier, wherever possible */
   runBy: string;
   artifact?: string;
 }

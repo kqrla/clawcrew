@@ -11,7 +11,7 @@ export type JoinSemantics = 'all' | 'quorum' | 'first_success';
 export type Outcome = 'result' | 'not_applicable' | 'blocked';
 
 export interface Report {
-  circle: string;
+  tier: string;
   partition: string;
   outcome: Outcome;
   artifactRef?: string;
@@ -24,8 +24,8 @@ export interface Report {
 export interface Convergence {
   id: string;
   parentObjective: string;
-  circles: string[];
-  /** partition -> owning circle. exhaustive by construction, not by convention. */
+  tiers: string[];
+  /** partition -> owning tier. exhaustive by construction, not by convention. */
   partitions: Record<string, string>;
   join: JoinSemantics;
   quorum?: number;
@@ -37,14 +37,14 @@ export function validateConvergence(c: Convergence): string[] {
   const problems: string[] = [];
   const partitions = Object.keys(c.partitions);
   if (partitions.length === 0) problems.push('no_partitions');
-  if (c.circles.length < 2) problems.push('convergence_needs_two_circles');
+  if (c.tiers.length < 2) problems.push('convergence_needs_two_tiers');
 
   for (const [partition, owner] of Object.entries(c.partitions)) {
-    if (!c.circles.includes(owner)) problems.push(`owner_not_a_participant:${partition}:${owner}`);
+    if (!c.tiers.includes(owner)) problems.push(`owner_not_a_participant:${partition}:${owner}`);
   }
-  for (const circle of c.circles) {
-    const owned = partitions.filter((p) => c.partitions[p] === circle);
-    if (owned.length === 0) problems.push(`participant_owns_nothing:${circle}`);
+  for (const tier of c.tiers) {
+    const owned = partitions.filter((p) => c.partitions[p] === tier);
+    if (owned.length === 0) problems.push(`participant_owns_nothing:${tier}`);
   }
   if (c.join === 'quorum') {
     if (c.quorum === undefined) problems.push('quorum_required');
@@ -55,17 +55,17 @@ export function validateConvergence(c: Convergence): string[] {
 }
 
 /**
- * a report must come from the circle that owns the partition. this is what stops
+ * a report must come from the tier that owns the partition. this is what stops
  * a fast team from quietly filling a neighbour's gap, which is how orphans get
  * papered over instead of surfaced.
  */
 export function report(c: Convergence, r: Report): Convergence {
-  if (!c.circles.includes(r.circle)) throw new Error(`${r.circle} is not a participant`);
+  if (!c.tiers.includes(r.tier)) throw new Error(`${r.tier} is not a participant`);
   const owner = c.partitions[r.partition];
   if (!owner) throw new Error(`unknown partition ${r.partition}`);
-  if (owner !== r.circle) throw new Error(`${r.circle} does not own partition ${r.partition} (owned by ${owner})`);
-  if (c.reports.some((x) => x.circle === r.circle && x.partition === r.partition)) {
-    throw new Error('partition already reported; amend through the parent circle');
+  if (owner !== r.tier) throw new Error(`${r.tier} does not own partition ${r.partition} (owned by ${owner})`);
+  if (c.reports.some((x) => x.tier === r.tier && x.partition === r.partition)) {
+    throw new Error('partition already reported; amend through the parent tier');
   }
   if (r.outcome === 'result' && (!r.artifactRef || !isReference(r.artifactRef))) {
     throw new Error('a result requires an artifact reference');
@@ -81,7 +81,7 @@ export interface BarrierState {
   reported: number;
   results: number;
   missing: string[];
-  blocked: { circle: string; partition: string; reason: string }[];
+  blocked: { tier: string; partition: string; reason: string }[];
   satisfied: boolean;
   rule: string;
 }
@@ -95,7 +95,7 @@ export function barrier(c: Convergence): BarrierState {
   const resolved = new Set([...results.map((r) => r.partition), ...na]);
   const blocked = c.reports
     .filter((r) => r.outcome === 'blocked')
-    .map((r) => ({ circle: r.circle, partition: r.partition, reason: r.reason ?? '' }));
+    .map((r) => ({ tier: r.tier, partition: r.partition, reason: r.reason ?? '' }));
 
   let satisfied = false;
   let rule = '';
@@ -147,26 +147,26 @@ export function integrationGate(
 
 export interface Conflict {
   surface: string;
-  circles: string[];
+  tiers: string[];
   artifacts: string[];
 }
 
 /** two teams wrote to the same surface. last-write-wins is not a merge strategy. */
 export function conflicts(c: Convergence): Conflict[] {
-  const bySurface = new Map<string, { circles: Set<string>; artifacts: Set<string> }>();
+  const bySurface = new Map<string, { tiers: Set<string>; artifacts: Set<string> }>();
   for (const r of c.reports) {
     if (r.outcome !== 'result') continue;
     for (const s of r.touches) {
-      const entry = bySurface.get(s) ?? { circles: new Set<string>(), artifacts: new Set<string>() };
-      entry.circles.add(r.circle);
+      const entry = bySurface.get(s) ?? { tiers: new Set<string>(), artifacts: new Set<string>() };
+      entry.tiers.add(r.tier);
       if (r.artifactRef) entry.artifacts.add(r.artifactRef);
       bySurface.set(s, entry);
     }
   }
   const out: Conflict[] = [];
   for (const [surface, entry] of bySurface) {
-    if (entry.circles.size > 1) {
-      out.push({ surface, circles: [...entry.circles].sort(), artifacts: [...entry.artifacts].sort() });
+    if (entry.tiers.size > 1) {
+      out.push({ surface, tiers: [...entry.tiers].sort(), artifacts: [...entry.artifacts].sort() });
     }
   }
   return out.sort((a, b) => (a.surface < b.surface ? -1 : 1));

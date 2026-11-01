@@ -24,7 +24,7 @@ seat `design`, homed in `brand.social`, seconded to `eng.launch`.
 | secondment → eng.launch | asset.write, git.read | 0 |
 | **effective** | **asset.write** | **0** |
 
-`ad.publish` disappears because the secondment does not carry it. `git.read` appears but cannot be used to write. spend is zero in the host, so any spend in the launch context draws from the host circle's budget, not the seat's.
+`ad.publish` disappears because the secondment does not carry it. `git.read` appears but cannot be used to write. spend is zero in the host, so any spend in the launch context draws from the host tier's budget, not the seat's.
 
 this is the intended outcome: authority to contribute, not authority to spend or publish, unless the secondment says so.
 
@@ -33,7 +33,7 @@ this is the intended outcome: authority to contribute, not authority to spend or
 ```yaml
 grant:
   id: grant.4b21
-  subject: seat.infra-lead | circle.eng.platform
+  subject: seat.infra-lead | tier.eng.platform
   tool: cloud.deploy.staging
   scope: {env: staging, regions: [us-east]}
   limits: {calls_per_day: 50, spend_usd_per_day: 10}
@@ -54,7 +54,7 @@ elevation is the explicit widening path.
 ```yaml
 elevation:
   id: elev.91c
-  issuer: circle.eng.platform        # must be an ancestor of the target
+  issuer: tier.eng.platform        # must be an ancestor of the target
   target: seat.eng.platform.infra.ci
   adds: [cloud.deploy.staging]
   reason: "ci must deploy to staging between 09:00 and 17:00 et"
@@ -90,7 +90,7 @@ every write-capable action resolves to exactly one class, by rule, before it exe
 | a0 | act and log | nobody |
 | a1 | act and notify | a human is told after |
 | a2 | approve first | a named human |
-| a3 | dual control | the accountable circle's manager **and** a human |
+| a3 | dual control | the accountable tier's manager **and** a human |
 | a4 | never unattended | a human acts; the agent may only draft |
 
 assignment rules, evaluated in order:
@@ -98,8 +98,8 @@ assignment rules, evaluated in order:
 1. money moving out of the entity → **a4**
 2. irreversible external publication (a post, an email to a customer list, a domain change) → **a3**
 3. writes to a `sensitive` surface → **a3**
-4. any spend above the circle's per-action threshold → **a2**
-5. any write to another circle's surface → **a2**
+4. any spend above the tier's per-action threshold → **a2**
+5. any write to another tier's surface → **a2**
 6. writes to an owned surface → **a1**
 7. reads and internal state changes → **a0**
 
@@ -130,4 +130,4 @@ the gate sits in front of the tool layer, so a blocked action is a call that can
 - credentials, in any form
 - surfaces outside its effective set, including their existence where sensitivity requires it
 - other seats' private memory namespaces
-- the full org chart. a seat receives its circle, its chain and its collaborators. the rest is not its business, and holding it costs context.
+- the full org chart. a seat receives its tier, its chain and its collaborators. the rest is not its business, and holding it costs context.

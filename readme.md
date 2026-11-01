@@ -22,7 +22,7 @@ orchart is built around the mechanisms that answer those three, and nothing else
 
 ## what it is
 
-- a **recursive org model**. one entity, the circle, at any depth. department, bloc, team and pod are labels a human puts on it.
+- a **recursive org model**. one entity, the tier, at any depth. department, bloc, team and pod are labels a human puts on it.
 - **authority that compiles to credentials.** effective permission is an intersection down the ancestor chain, never a sentence in a prompt.
 - **a secondment model** for work that crosses branches, because real orgs are matrices even when authority is a tree.
 - **shift leases and typed handoffs**, so a dead agent produces an alarm instead of a gap.
@@ -44,7 +44,7 @@ the wedge is narrower than the vision: run **one** revenue-bearing surface end t
 | --- | --- |
 | [00-thesis](docs/00-thesis.md) | the argument, in one page |
 | [01-principles](docs/01-principles.md) | nine rules that are enforced, not aspired to |
-| [02-org-model](docs/02-org-model.md) | circles, seats, surfaces, depth |
+| [02-org-model](docs/02-org-model.md) | tiers, seats, surfaces, depth |
 | [03-authority](docs/03-authority.md) | grants, intersection, elevation, approval classes |
 | [04-secondments](docs/04-secondments.md) | how the matrix resolves without two bosses |
 | [05-shifts](docs/05-shifts-and-handoffs.md) | leases, on-call relay, parallel convergence, handoffs |
@@ -62,6 +62,7 @@ the wedge is narrower than the vision: run **one** revenue-bearing surface end t
 | [17-sandbox](docs/17-sandbox-permeability-and-convergence.md) | isolation plus permeability, the relay, and how parallel teams converge |
 | [18-a2a](docs/18-a2a-boundary.md) | inter-org comms, and why a2a is a port rather than a platform |
 | [19-taxonomy](docs/19-position-in-the-taxonomy.md) | our position on the five axes of hmas, and the horizon defect it exposed |
+| [20-skills](docs/20-skills.md) | a skill library is how the org compounds, and how it must be stopped from rotting |
 | [backend](backend/readme.md) | the working engine: stack, plugin surface, 114 tests |
 
 diagram: [diagrams/org-model.svg](diagrams/org-model.svg)

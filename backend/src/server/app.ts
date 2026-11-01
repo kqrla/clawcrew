@@ -15,12 +15,12 @@ export interface AppDeps {
 
 const ActionSchema = z.object({
   verb: z.string().min(1),
-  actorCircle: z.string().min(1),
+  actorTier: z.string().min(1),
   surface: z
     .object({
       kind: z.enum(['repo_path', 'db_table', 'endpoint', 'domain', 'ad_account', 'bank_account', 'document', 'queue']),
       sensitivity: z.enum(['public', 'internal', 'sensitive']),
-      ownerCircle: z.string(),
+      ownerTier: z.string(),
     })
     .optional(),
   economic: z.object({ direction: z.enum(['in', 'out']), amountUsd: z.number() }).optional(),
@@ -75,7 +75,7 @@ export function createApp(deps: AppDeps) {
 const ObjectiveInput = z.object({
   id: z.string().min(1),
   parent: z.string().nullable(),
-  ownerCircle: z.string().min(1),
+  ownerTier: z.string().min(1),
   statement: z.string().min(1),
   metric: z.string().min(1),
   source: z.string().min(1),

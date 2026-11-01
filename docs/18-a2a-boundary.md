@@ -8,11 +8,11 @@ none of them is an a2a implementation, and none is a base to fork for one.
 | --- | --- | --- | --- |
 | [`block/buzz`](https://github.com/block/buzz) | a self-hostable workspace on a nostr relay: 3.1k commits of rust, a desktop app, mobile clients, channels, git events. apache-2.0 | forking a platform. you inherit its release cadence, its nostr model and a rust toolchain | the identity idea: agents are members with **their own keypair**, so every message is a signed event in the same log as a human's. that is the audit design in [09](09-audit.md), built by someone else |
 | [`MapleTechLabs/hazel`](https://github.com/MapleTechLabs/hazel) | a chat app on cloudflare durable objects, effect-ts, tanstack db. 2.6k commits | runtime lock-in. the interesting part is the durability model, not the chat | one object per org/channel with its own sqlite, and a transactional outbox between objects. good pattern, wrong home for a system whose record is postgres |
-| [`tashfeenahmed/circlechat`](https://github.com/tashfeenahmed/circlechat) | the closest thing to this project's surface: agents as first-class members, typed action allowlist, approvals, a verification gate, decision memory. mit, typescript, fastify, postgres 16 | less than the other two, and it is the only one where the stack matches | the **surface**: transcript view, approval ux, reply-guard. these are the parts of an agent org that humans actually touch |
+| [`tashfeenahmed/tierchat`](https://github.com/tashfeenahmed/tierchat) | the closest thing to this project's surface: agents as first-class members, typed action allowlist, approvals, a verification gate, decision memory. mit, typescript, fastify, postgres 16 | less than the other two, and it is the only one where the stack matches | the **surface**: transcript view, approval ux, reply-guard. these are the parts of an agent org that humans actually touch |
 
-circlechat deserves a longer note because it is genuinely good and dangerously adjacent. its authority is a **typed action allowlist** enforced by the platform (`post_message`, `react`, `update_task`, ...), and its safety valve is a human approval click. ours is a credential intersection computed down an ancestor chain. the first is easier to build and much easier to bypass: the allowlist decides what an agent may *say*, not what it may *do* to a surface it was never granted. it also has no crossings, no secondments, no objective ledger and no external metric rule.
+tierchat deserves a longer note because it is genuinely good and dangerously adjacent. its authority is a **typed action allowlist** enforced by the platform (`post_message`, `react`, `update_task`, ...), and its safety valve is a human approval click. ours is a credential intersection computed down an ancestor chain. the first is easier to build and much easier to bypass: the allowlist decides what an agent may *say*, not what it may *do* to a surface it was never granted. it also has no crossings, no secondments, no objective ledger and no external metric rule.
 
-so: mine circlechat for the ui, do not adopt its permission model.
+so: mine tierchat for the ui, do not adopt its permission model.
 
 ## why a2a is a port, not a platform
 
@@ -26,7 +26,7 @@ which is exactly why it belongs behind `relay()` and `crossing`. a2a says what t
 
 | a2a | orchart | the caveat |
 | --- | --- | --- |
-| agent card | a **narrowed** card generated from the crossings | skills are derived from what was authorized, never from what the circle can theoretically do |
+| agent card | a **narrowed** card generated from the crossings | skills are derived from what was authorized, never from what the tier can theoretically do |
 | `message/send` | a relay envelope | the envelope still needs a `crossing`, a rate, a hop bound and a dedupe key |
 | task | a handoff | responsibility, not just correspondence |
 | `completed` | **a claim** | same guard as a closed plane card. `completionIsAClaim()` |
@@ -78,5 +78,5 @@ the piece to disagree with is council. averaging several independent takes is a 
 - no `.well-known/agent-card.json` route
 - no streaming or `subscribe`
 - no push-notification registration (`createPushNotificationConfig`)
-- no signed cards, so a card cannot yet be verified as issued by the circle it claims to be
+- no signed cards, so a card cannot yet be verified as issued by the tier it claims to be
 - no key rotation for the transport credential, which is the gap that will matter first

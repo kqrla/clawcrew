@@ -10,7 +10,7 @@
                             │
                     ┌───────▼────────┐
                     │   core engine  │
-                    │  circles·auth  │
+                    │  tiers·auth  │
                     │  leases·ledger │
                     └───────┬────────┘
         ┌───────────────────┼───────────────────┐
@@ -46,7 +46,7 @@ for parallel work across a partitioned surface, the partition key is the lock gr
 
 ## model routing
 
-each seat names a model and a fallback. routing is per seat, never per prompt, so the same role produces consistent behavior and the cost is attributable to a circle.
+each seat names a model and a fallback. routing is per seat, never per prompt, so the same role produces consistent behavior and the cost is attributable to a tier.
 
 - a cheap model for intake, classification and summarizing.
 - a strong model for planning, arbitration and code.
@@ -54,7 +54,7 @@ each seat names a model and a fallback. routing is per seat, never per prompt, s
 
 ## cost
 
-every call carries `circle_id` and `objective_id`. there is no un-attributed spend.
+every call carries `tier_id` and `objective_id`. there is no un-attributed spend.
 
 the report that matters is not total cost. it is **cost per unit of measured movement**, by objective, which is also the auditor's q3.
 

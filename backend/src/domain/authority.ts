@@ -6,7 +6,7 @@ export interface ChainLevel {
 }
 
 export interface Secondment {
-  /** the scope the home circle authorized for work inside the host */
+  /** the scope the home tier authorized for work inside the host */
   scope: GrantSet;
 }
 
@@ -31,8 +31,8 @@ function trace(own: GrantSet, levels: ChainLevel[], kept: Set<string>): TraceEnt
 }
 
 /**
- * authority inside the home circle:
- *   root ceiling ∩ ... ∩ own circle ceiling ∩ own grants
+ * authority inside the home tier:
+ *   root ceiling ∩ ... ∩ own tier ceiling ∩ own grants
  */
 export function effectiveHome(chain: ChainLevel[], own: GrantSet): AuthorityResult {
   if (chain.length === 0) throw new Error('authority requires at least one chain level');
@@ -43,7 +43,7 @@ export function effectiveHome(chain: ChainLevel[], own: GrantSet): AuthorityResu
 }
 
 /**
- * authority inside a host circle during a secondment:
+ * authority inside a host tier during a secondment:
  *   host ceiling ∩ secondment scope ∩ own grants
  *
  * note there is no home-ceiling term: the home ceiling already bounds `own`.

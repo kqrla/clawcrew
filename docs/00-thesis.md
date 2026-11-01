@@ -30,7 +30,7 @@ so objectives are first-class objects with metrics and executable sources, tasks
 
 authority is a tree. accountability is a graph. conflating the two is what makes agent org charts either unsafe (everyone can do everything) or paralyzed (everything needs a manager who is also an agent).
 
-keep them separate and the rest follows: one home circle per seat for authority, per-deliverable ownership in the host circle for accountability, and a secondment record that joins them.
+keep them separate and the rest follows: one home tier per seat for authority, per-deliverable ownership in the host tier for accountability, and a secondment record that joins them.
 
 ## what success looks like
 

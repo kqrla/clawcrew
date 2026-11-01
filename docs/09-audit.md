@@ -4,7 +4,7 @@
 
 a third party who is not an ai, is not in the company and does not trust the agents must be able to answer, for any action:
 
-1. **who** acted: which seat, in which circle
+1. **who** acted: which seat, in which tier
 2. **under what authority**: which grant, elevation or secondment made it legal
 3. **on what**: which surface, with which version
 4. **with what effect**: state change, money moved, message sent
@@ -21,7 +21,7 @@ append-only. never updated, never deleted. corrections are new events that refer
 event:
   id: evt.01J9...
   at: 2026-11-03T14:22:07.412Z
-  actor: {seat: seat.billing, circle: finance-ops, badge: badge.7f3a}
+  actor: {seat: seat.billing, tier: finance-ops, badge: badge.7f3a}
   authority:
     grant: grant.4b21
     elevation: null
@@ -45,7 +45,7 @@ weekly, the auditor stores the head hash somewhere the org cannot write: a separ
 
 ## the badge
 
-every seat carries a badge: seat id, title, home circle, secondments, held tools, limits, state and a summary record. every message, tool call, handoff and lease carries the badge id.
+every seat carries a badge: seat id, title, home tier, secondments, held tools, limits, state and a summary record. every message, tool call, handoff and lease carries the badge id.
 
 the badge is a display object over the event log. it never carries authority by itself, and it is never accepted as proof of identity by a tool. the capability token is the proof; the badge is how humans read it.
 
@@ -55,7 +55,7 @@ the raw log is jsonl. that is not what an accountant, a bank or a counterparty r
 
 ship three projections:
 
-- **the ledger view**: money in, money out, by circle, by objective, reconciled to the payment provider. exportable as csv.
+- **the ledger view**: money in, money out, by tier, by objective, reconciled to the payment provider. exportable as csv.
 - **the decision view**: decisions, who made them, under what authority, and what dissent was recorded.
 - **the incident view**: everything classified a3 or a4, plus every integrity finding, in plain language.
 
@@ -81,6 +81,6 @@ retention is enforced by the storage layer, not by a cron job that someone turns
 
 ## replay
 
-because the log is append-only and hash-chained, any circle's state at time T can be reconstructed: replay its events, recompute effective permissions and leases, and diff against the current state.
+because the log is append-only and hash-chained, any tier's state at time T can be reconstructed: replay its events, recompute effective permissions and leases, and diff against the current state.
 
 replay is the debugging tool and the forensic tool. it is also the acceptance test for the storage layer: if a rebuild from events does not match live state, the live state is wrong.

@@ -126,5 +126,5 @@
   <!-- ===== legend / notes ===== -->
   <line x1="48" y1="628" x2="1352" y2="628" stroke="#e2e8f0" stroke-width="1"/>
   <text x="48" y="650" font-size="10.5" fill="#475569">depth is a cost, not a status: each level buys isolation and costs a delegation hop, a review hop and a budget split.</text>
-  <text x="48" y="668" font-size="10.5" fill="#475569">invariants · one parent per circle · one home per seat · one owner per surface · child ceiling ⊆ parent ceiling · secrets never intersect.</text>
+  <text x="48" y="668" font-size="10.5" fill="#475569">invariants · one parent per tier · one home per seat · one owner per surface · child ceiling ⊆ parent ceiling · secrets never intersect.</text>
 </svg>

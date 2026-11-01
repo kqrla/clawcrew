@@ -7,7 +7,7 @@ a real org is a matrix. the drawing that started this project has seven executio
 the resolution is to stop asking one relationship to carry two different things.
 
 - **authority** (whose credentials, whose budget, who approves) is single-parent and lives in the tree.
-- **accountability** (who owns this outcome) attaches to the circle that commissioned the work.
+- **accountability** (who owns this outcome) attaches to the tier that commissioned the work.
 
 a secondment is the record that joins them.
 
@@ -17,8 +17,8 @@ a secondment is the record that joins them.
 secondment:
   id: sec.2f81
   seat: seat.design
-  home_circle: brand.social
-  host_circle: eng.launch
+  home_tier: brand.social
+  host_tier: eng.launch
   deliverable: "launch page assets, 12 screens, by 2026-11-12"
   scope:
     tools: [asset.write, git.read]
@@ -89,7 +89,7 @@ each host runs in its own session with its own memory namespaces. the model phys
 
 what the seat learns in the host is stored under the host's namespace.
 
-merging back to the home circle is an explicit acceptance, not a default:
+merging back to the home tier is an explicit acceptance, not a default:
 
 - the home manager sees a summary of what would merge, with source message ids
 - accepted material is written with provenance
@@ -108,15 +108,15 @@ the choice and its reason are logged. default is keep, because destroying work p
 
 ## limits
 
-- a seat may hold at most **two** active secondments. three is a sign the seat is a shared service that should be a circle.
+- a seat may hold at most **two** active secondments. three is a sign the seat is a shared service that should be a tier.
 - a secondment may not exceed 90 days without re-authorization.
-- a secondment to an ancestor circle requires the ancestor's manager to authorize, not the immediate home manager.
+- a secondment to an ancestor tier requires the ancestor's manager to authorize, not the immediate home manager.
 - a secondment is not a promotion, a raise, or a change of home. if a seat spends most of its hours in the host for two consecutive cycles, the correct action is a transfer, and the monthly review should say so.
 
 ## hours accounting
 
 every secondment logs hours spent, derived from leases rather than self-reported. the monthly review surfaces:
 
-- seats with more than 50% of hours outside their home circle (misplaced seats)
+- seats with more than 50% of hours outside their home tier (misplaced seats)
 - hosts that depend on seconded capacity for more than one cycle (hidden headcount)
 - repeated denied requests for the same scope (structural starvation)
