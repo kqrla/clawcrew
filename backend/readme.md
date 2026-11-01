@@ -1,0 +1,117 @@
+# orchart backend
+
+the engine that enforces the spec in [`../docs`](../docs). letters before lines: this is v0.1 of the backend, and it implements the parts that are load-bearing and testable, not the whole chart.
+
+60 tests, zero failing. typecheck clean under `strict` + `noUncheckedIndexedAccess`.
+
+## stack
+
+| layer | choice | why |
+| --- | --- | --- |
+| language | typescript, node 20+ | one language for the engine, the api and the browser-first canvas. splitting the core across python and ts means writing the authority model twice, and the second copy is the one that drifts. |
+| store | postgres 16 | recursive ctes for the ancestor chain, `select for update` for lease claiming, partial unique indexes for "one live holder", and advisory locks for the surface writer lock. sqlite cannot do the coordination half without hand-rolled locking. |
+| http | hono | tiny, runs on node, bun, workers and deno. the api is not the product; it should be replaceable. |
+| sql | hand-written, no orm | the schema is an artifact a security reviewer has to read. `migrations/0001_init.sql` is the review. |
+| validation | zod | one schema per boundary, shared by the api and the plugin config. |
+| tests | vitest | the domain modules are pure functions, so the suite runs in under a second and needs no database. |
+
+no redis, no temporal, no queue. the ticker is a cron that does one pass and exits, because a long-lived worker that dies leaves a responsibility looking staffed.
+
+## the one place the spec had to be inverted
+
+`docs/11-memory.md` says git is the source of truth and memory is a derived index. that is right for decisions and transcripts. it is wrong for `leases`, `handoffs` and surface locks, which need atomic multi-row transitions that a filesystem cannot join to a transaction.
+
+so: **postgres is the coordination store, and the event log lives in it** with a hash chain and an append-only trigger. portability comes from **export**, not from making git the write path: `event` streams dump to jsonl, `verifyChain()` proves the export was not rewritten, and a rebuild from events is the acceptance test for the storage layer.
+
+if you want the audit in git, export it. do not write it there.
+
+## layout
+
+```
+src/domain/      pure functions. no io. this is the spec, executable.
+  authority.ts     chain intersection, elevation, host context
+  policy.ts        deterministic risk -> a0..a4, override rows
+  leases.ts        expiry, heartbeat, escalation ladder
+  handoff.ts       state machine, precondition, undelivered
+  objectives.ts    ledger rules, closure, drift queries
+  events.ts        canonical json, hash chain, jsonl
+src/plugins/     the extension surface (see below)
+src/store/       postgres. the only place that talks to a db
+src/server/      hono app + a demo org for clicking around
+src/cli/tick.ts  one pass: expire leases, bounce handoffs, write events
+migrations/      schema, including the immutability trigger
+test/            60 tests, no database required
+```
+
+## run it
+
+```bash
+cp .env.example .env
+docker compose up -d
+npm install
+npm run migrate          # or: psql $DATABASE_URL -f migrations/0001_init.sql
+npm test                 # 60 passing, no db needed
+npm run dev              # http://localhost:8787
+npm run tick             # one scheduler pass
+```
+
+```bash
+curl localhost:8787/seats/seat.content/authority
+curl -X POST localhost:8787/policy/evaluate \
+  -H 'content-type: application/json' \
+  -d '{"verb":"payout.send","actorCircle":"fin","economic":{"direction":"out","amountUsd":5}}'
+```
+
+## the plugin surface
+
+this is the part that matters for self-direction. nothing in `src/domain` imports a concrete adapter. everything that could change as the org gets more autonomous is a plugin with a declared abi, enabled by a committed config file.
+
+| kind | what it lets you replace | without touching |
+| --- | --- | --- |
+| `objective_source` | how a metric is computed (`sql:`, `http:`, `git:`, `run:`) | the ledger |
+| `auditor` | what the weekly audit asks and how it scores | the state machine |
+| `trigger` | what wakes a circle (cron, webhook, event, human) | leases |
+| `tool_adapter` | what tools exist, scoped by grant | the policy gate |
+| `memory_store` | where derived memory lives | the record |
+| `model_router` | which model serves which seat and stage | everything |
+
+two rules make this safe rather than decorative:
+
+1. **the abi is versioned and checked at registration.** a plugin built for another abi is refused at boot, not discovered at 3am.
+2. **config is the authority.** a plugin present in code but absent from `orchart.config.json` is inert. enabling more autonomy is a reviewable diff in a committed file, not a runtime flag.
+
+```ts
+const registry = PluginRegistry.fromConfig(
+  { version: 1, plugins: [{ kind: 'auditor', id: 'weekly-standard' }], policy: { spendApprovalThresholdUsd: 50 } },
+  [sqlSource(), weeklyAuditor()],
+);
+```
+
+## what is implemented
+
+- authority intersection with a per-tool trace of which level dropped it
+- host-context authority for secondments, including the zero-spend default
+- elevation with expiry, ancestor check, issuer-ceiling check and window
+- deterministic risk classification and the model-override row
+- lease expiry, heartbeat staleness, the five-step escalation ladder
+- handoff state machine, precondition check, `undelivered` as a real state
+- objective validation, closure on own metric only, untraceable/unsupported/stalled
+- hash-chained event log with tamper and gap detection, jsonl export
+- weekly auditor: q1 claim vs measurement, q2 untraceable, q3 spend without movement
+- postgres schema with one-live-holder index, append-only trigger, recursive chain view
+- hono api: authority, policy, objectives, plugins, health
+
+## what is not
+
+- no channels, decisions or votes yet
+- no secondment api (the domain function exists, the routes do not)
+- no memory adapters, no model router implementation
+- no auth. the api is a local surface; do not expose it
+- no surface-lock integration in the tool layer yet
+- the auditor is not yet a separate identity with separate credentials, which the spec says is the load-bearing part
+
+## next three, in order
+
+1. surface registry + registration endpoint, because every other write depends on ownership existing
+2. secondment request/authorize flow, because it is the least-proven design in the spec
+3. the auditor running as a separate process with a read-only role, because an auditor with the workers' credentials is a rubber stamp

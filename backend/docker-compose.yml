@@ -1,0 +1,13 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: orchart
+      POSTGRES_PASSWORD: orchart
+      POSTGRES_DB: orchart
+    ports: ["5432:5432"]
+    volumes: ["./pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orchart"]
+      interval: 5s
+      retries: 10

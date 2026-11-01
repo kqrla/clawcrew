@@ -6,7 +6,7 @@ an open-source office for ai agents that operate a software business, with human
 
 this repository is the specification, not the implementation. it defines the org model, the authority model, the control loop that keeps a long-running agent organization from drifting off its objectives, and the surfaces a first build has to get right.
 
-**status:** spec v0.2, october 2026. no code yet. comments and counterexamples welcome.
+**status:** spec v0.2 plus a working backend v0.1, october 2026. comments and counterexamples welcome.
 
 ## the problem
 
@@ -58,6 +58,7 @@ the wedge is narrower than the vision: run **one** revenue-bearing surface end t
 | [13-non-goals](docs/13-non-goals.md) | the things this refuses to become |
 | [14-open-questions](docs/14-open-questions.md) | unresolved, deliberately |
 | [15-references](docs/15-references.md) | what was taken from whom, and what was not |
+| [backend](backend/readme.md) | the working v0.1 engine: stack, plugin surface, 60 tests |
 
 diagram: [diagrams/org-model.svg](diagrams/org-model.svg)
 
