@@ -77,6 +77,8 @@ export interface TaskRow {
   last_claim_at: string | Date | null;
   replanned_by: string | null;
   replanned_at: string | Date | null;
+  deferred_ticks: number | null;
+  starved_at: string | Date | null;
 }
 
 const iso = (v: string | Date): string => (v instanceof Date ? v.toISOString() : v);
@@ -159,6 +161,8 @@ export function toWork(r: TaskRow): WorkRow {
     ...(r.last_claim_at !== null ? { lastClaimAt: iso(r.last_claim_at) } : {}),
     ...(r.replanned_by !== null ? { replannedBy: r.replanned_by } : {}),
     ...(r.replanned_at !== null ? { replannedAt: iso(r.replanned_at) } : {}),
+    deferredTicks: r.deferred_ticks ?? 0,
+    ...(r.starved_at !== null ? { starvedAt: iso(r.starved_at) } : {}),
   };
 }
 
@@ -176,6 +180,7 @@ export async function writeWork(db: Queryable, w: WorkRow): Promise<void> {
             metric_value_at = $16, metric_observed_at = $17,
             claim_key = $18, input_fingerprint = $19, last_claim_at = $20,
             replanned_by = $21, replanned_at = $22,
+            deferred_ticks = $23, starved_at = $24,
             completed_at = case when $2 = 'done' then coalesce(completed_at, now())
                                 else completed_at end
       where id = $1`,
@@ -202,6 +207,8 @@ export async function writeWork(db: Queryable, w: WorkRow): Promise<void> {
       w.lastClaimAt ?? null,
       w.replannedBy ?? null,
       w.replannedAt ?? null,
+      w.deferredTicks ?? 0,
+      w.starvedAt ?? null,
     ],
   );
 }

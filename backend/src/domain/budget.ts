@@ -193,3 +193,93 @@ export function expired(reservations: Reservation[], now: string, ttlMs: number)
   const cutoff = Date.parse(now) - ttlMs;
   return reservations.filter((r) => r.state === 'held' && Date.parse(r.startedAt) < cutoff);
 }
+
+/**
+ * `tier.budget` was a blob an operator wrote and the engine never read. this
+ * turns it into policies, and refuses to guess: a key it does not understand is
+ * reported back rather than dropped, because a limit that silently did nothing
+ * is the failure this whole module exists to end.
+ *
+ * the ids it mints match the ones `migrations/20261101000001` backfills, so a
+ * tier seeded before this code shipped and a tier seeded after it are the same
+ * policy, not two.
+ */
+export interface BudgetSeed {
+  usd_cents_per_day?: number;
+  usd_per_day?: number;
+  tokens_per_day?: number;
+  tool_calls_per_day?: number;
+  warn_percent?: number;
+  hard_stop?: boolean;
+}
+
+const SEED_KEYS = new Set([
+  'usd_cents_per_day',
+  'usd_per_day',
+  'tokens_per_day',
+  'tool_calls_per_day',
+  'warn_percent',
+  'hard_stop',
+]);
+
+export interface SeedResult {
+  policies: BudgetPolicy[];
+  /** keys present in the seed that produced no policy, and why */
+  ignored: { key: string; reason: string }[];
+}
+
+export function policiesFromSeed(
+  scopeId: string,
+  seed: unknown,
+  opts: { scope?: BudgetScope } = {},
+): SeedResult {
+  const scope = opts.scope ?? 'tier';
+  const policies: BudgetPolicy[] = [];
+  const ignored: { key: string; reason: string }[] = [];
+
+  if (typeof seed !== 'object' || seed === null || Array.isArray(seed)) {
+    return { policies, ignored: [{ key: '<seed>', reason: 'seed_is_not_an_object' }] };
+  }
+  const raw = seed as Record<string, unknown>;
+
+  const warnPercent =
+    typeof raw.warn_percent === 'number' && raw.warn_percent >= 0 && raw.warn_percent <= 1
+      ? raw.warn_percent
+      : 0.8;
+  const hardStop = typeof raw.hard_stop === 'boolean' ? raw.hard_stop : true;
+
+  const add = (metric: BudgetMetric, amount: unknown, idMetric: string) => {
+    if (amount === undefined) return;
+    if (typeof amount !== 'number' || !Number.isFinite(amount) || amount < 0) {
+      ignored.push({ key: idMetric, reason: 'amount_invalid' });
+      return;
+    }
+    policies.push({
+      id: `bp.${scopeId}.${metric}.day`,
+      scope,
+      scopeId,
+      metric,
+      window: 'day',
+      amount,
+      warnPercent,
+      hardStop,
+    });
+  };
+
+  // cents first, then dollars: if a seed carries both, the explicit one wins,
+  // which is the same precedence the backfill's conflict clause has.
+  add('usd_cents', raw.usd_cents_per_day, 'usd_cents_per_day');
+  if (raw.usd_cents_per_day === undefined && typeof raw.usd_per_day === 'number') {
+    add('usd_cents', Math.round(raw.usd_per_day * 100), 'usd_per_day');
+  } else if (raw.usd_per_day !== undefined && raw.usd_cents_per_day !== undefined) {
+    ignored.push({ key: 'usd_per_day', reason: 'superseded_by_usd_cents_per_day' });
+  }
+  add('tokens', raw.tokens_per_day, 'tokens_per_day');
+  add('tool_calls', raw.tool_calls_per_day, 'tool_calls_per_day');
+
+  for (const key of Object.keys(raw)) {
+    if (!SEED_KEYS.has(key)) ignored.push({ key, reason: 'unknown_key' });
+  }
+
+  return { policies, ignored };
+}

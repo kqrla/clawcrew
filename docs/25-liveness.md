@@ -161,19 +161,33 @@ the acceptance test for a month is not "it did something useful". it is: **no ro
 9. **replan as a verb**, distinct from retry: the owning tier rewrites the brief,
    the attempt count resets because the next runner answers a different question,
    and the metric baseline survives so a rewrite cannot launder a stale number.
-10. **a month of simulated ticks.** `test/runtime-month.test.ts` runs 4,320 ticks
+10. **chronic deferral has an alarm.** the skip is counted on the row
+    (`task.deferred_ticks`), not only in the tick report: `sweep` raises
+    `alarm_starved` at three consecutive skips, the alarm re-arms on an hour
+    instead of shouting every tick, and a row that finally moves clears its own
+    counter. `starved_work` is the view a human reads. the per-tick number was
+    useless for this: "2 deferred" every tick for a month reads exactly like a
+    busy queue while the same two rows never move.
+11. **the budget seed is enforced.** `tier.budget` now expands into
+    `budget_policy` rows, in SQL for tiers that already exist and in
+    `policiesFromSeed` for tiers created later, with the same ids so a seed from
+    either path is one policy rather than two. a key the seed carries and we do
+    not understand is reported rather than dropped, and `tier_budget_gap` lists
+    every tier that claims a budget and has no enforced policy.
+12. **a month of simulated ticks.** `test/runtime-month.test.ts` runs 4,320 ticks
    with three seats, a dying holder, a spinning holder, and new work arriving,
    asserting the invariants on every tick rather than sampling them.
 
 what is still missing, in the order it would bite:
 
-11. **nothing says when a deferral is chronic.** `workDeferred` is counted and
-   then ignored; a tick that defers every cycle needs an alarm, and today it has
-   a number nobody reads.
-12. **no real agents.** the harness drives the domain with scripted seats. it
+13. **spend is not yet wired to work.** the policy and the reservation exist and
+    the database enforces their shape, but the tick does not reserve before a
+    run spends, because no run spends anything real yet. the moment an adapter
+    calls a paid model, that reservation is the line between a budget and a bill.
+14. **no real agents.** the harness drives the domain with scripted seats. it
     proves the machinery, not the behaviour of a model under a lease, which is
     the only thing a month actually tests.
-13. **transport adapters.** a relay still cannot deliver, so the org cannot talk
+15. **transport adapters.** a relay still cannot deliver, so the org cannot talk
     to itself across sandboxes (docs/22 §11).
 
 ## 11 · open questions

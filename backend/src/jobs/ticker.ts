@@ -57,6 +57,8 @@ export interface TickReport {
   workFindings: number;
   /** transitions the budget pushed to the next tick */
   workDeferred: number;
+  /** rows that have now been skipped for long enough to alarm */
+  workStarved: number;
   lagMs: number;
 }
 
@@ -78,6 +80,7 @@ export async function runTick(ports: TickerPorts, opts: TickOptions): Promise<Ti
     workBlocked: 0,
     workFindings: 0,
     workDeferred: 0,
+    workStarved: 0,
     lagMs: 0,
   };
 
@@ -153,10 +156,13 @@ export async function runTick(ports: TickerPorts, opts: TickOptions): Promise<Ti
     (a) => a.kind === 'reclaim_expired' || a.kind === 'revoke_spinning' || a.kind === 'exhausted',
   );
   const transitions = stateChanges.slice(0, budget);
-  const workDeferred = Math.max(0, stateChanges.length - transitions.length);
+  const skipped = stateChanges.slice(budget);
+  const workDeferred = skipped.length;
   // re-arming an unclaimable row is bookkeeping, not a transition, so it is not
   // subject to the budget: dropping it would strand the row instead of delaying it
-  const rearms = actions.filter((a) => a.kind === 'alarm_unclaimable');
+  const rearms = actions.filter(
+    (a) => a.kind === 'alarm_unclaimable' || a.kind === 'alarm_starved',
+  );
 
   if (ports.saveWork) {
     const byId = new Map(work.map((w) => [w.id, w]));
@@ -169,7 +175,9 @@ export async function runTick(ports: TickerPorts, opts: TickOptions): Promise<Ti
       if (!next) continue;
       await ports.saveWork(next);
       byId.set(next.id, next);
-      if (a.kind === 'alarm_unclaimable') continue; // a window, not a transition
+      // a window or a counter, not a state change: neither is subject to the
+      // work budget, because dropping one strands or hides a row
+      if (a.kind === 'alarm_unclaimable' || a.kind === 'alarm_starved') continue;
       workSwept += 1;
       // buckets are by resulting state, not by the action that caused it: a
       // reclaim that spends the last attempt ends blocked, and the report has
@@ -177,6 +185,17 @@ export async function runTick(ports: TickerPorts, opts: TickOptions): Promise<Ti
       if (next.state === 'blocked') workBlocked += 1;
       else if (a.kind === 'reclaim_expired') workReclaimed += 1;
       else if (a.kind === 'revoke_spinning') workRevoked += 1;
+    }
+
+    // the budget pushed these out, so say so on the row itself. a per-tick
+    // count of deferred work is indistinguishable from a busy tick; the same
+    // row deferred three times is starvation, and only the row can tell.
+    for (const a of skipped) {
+      const row = byId.get(a.rowId);
+      if (!row) continue;
+      const bumped = { ...row, deferredTicks: (row.deferredTicks ?? 0) + 1 };
+      await ports.saveWork(bumped);
+      byId.set(bumped.id, bumped);
     }
   }
 
@@ -186,6 +205,7 @@ export async function runTick(ports: TickerPorts, opts: TickOptions): Promise<Ti
     (a) =>
       a.kind === 'alarm_unclaimable' ||
       a.kind === 'alarm_stall' ||
+      a.kind === 'alarm_starved' ||
       a.kind === 'violation' ||
       a.kind === 'revoke_spinning',
   );
@@ -209,6 +229,7 @@ export async function runTick(ports: TickerPorts, opts: TickOptions): Promise<Ti
     workBlocked,
     workFindings: findings.length,
     workDeferred,
+    workStarved: findings.filter((f) => f.kind === 'alarm_starved').length,
     lagMs: lagMs(schedules, now),
   };
 

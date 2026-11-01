@@ -53,6 +53,15 @@ export interface WorkRow {
   claimKey?: string;
   inputFingerprint?: string;
   lastClaimAt?: string;
+  /**
+   * how many consecutive ticks the work budget pushed this row out of the
+   * sweep. a row that is always deferred is starved, and a per-tick count of
+   * deferred work cannot see it: the report says "2 deferred" every tick for a
+   * month while the same two rows never move.
+   */
+  deferredTicks?: number;
+  /** when the starvation alarm last fired, so it re-arms instead of shouting */
+  starvedAt?: string;
 }
 
 export interface SweepOptions {
@@ -61,6 +70,10 @@ export interface SweepOptions {
   stuckRenewalLimit?: number;
   /** slack before a passed deadline counts as a stall */
   stallGraceMs?: number;
+  /** consecutive deferrals before a row counts as starved */
+  starveLimit?: number;
+  /** how long a starvation alarm stays quiet before it may fire again */
+  starveRearmMs?: number;
 }
 
 export type Action =
@@ -68,6 +81,7 @@ export type Action =
   | { kind: 'revoke_spinning'; rowId: string; holder: string; renewals: number }
   | { kind: 'alarm_unclaimable'; rowId: string; tier: string; deadline: string }
   | { kind: 'alarm_stall'; rowId: string; tier: string; since: string }
+  | { kind: 'alarm_starved'; rowId: string; tier: string; deferredTicks: number }
   | { kind: 'exhausted'; rowId: string; tier: string; attempts: number }
   | { kind: 'violation'; rowId: string; rule: ViolationRule };
 
@@ -119,6 +133,23 @@ export function sweep(rows: WorkRow[], opts: SweepOptions): Action[] {
     for (const rule of found) actions.push({ kind: 'violation', rowId: row.id, rule });
 
     if (isTerminal(row)) continue;
+
+    // chronic deferral. independent of the state checks below, because a
+    // starved row is a live row that the budget keeps skipping, and it will
+    // keep looking healthy for as long as nobody counts the skips per row.
+    const deferrals = row.deferredTicks ?? 0;
+    if (deferrals >= (opts.starveLimit ?? DEFAULT_STARVE_LIMIT)) {
+      const rearmMs = opts.starveRearmMs ?? DEFAULT_STARVE_REARM_MS;
+      const quiet = row.starvedAt ? now < ms(row.starvedAt) + rearmMs : false;
+      if (!quiet) {
+        actions.push({
+          kind: 'alarm_starved',
+          rowId: row.id,
+          tier: row.tier,
+          deferredTicks: deferrals,
+        });
+      }
+    }
 
     // exhausted attempts are terminal-ish: the row must be blocked, by a tier,
     // with its history, rather than retried forever. a row already blocked is
@@ -204,6 +235,11 @@ export function canClaim(
 /** how long a reclaimed row waits to be picked up before it alarms */
 export const DEFAULT_CLAIM_WINDOW_MS = 15 * 60_000;
 
+/** consecutive deferrals that mean starvation rather than a busy tick */
+export const DEFAULT_STARVE_LIMIT = 3;
+/** starvation is a capacity trend, not an incident: it re-arms on an hour */
+export const DEFAULT_STARVE_REARM_MS = 60 * 60_000;
+
 /**
  * the transitions the tick persists. two of them change state; the unclaimable
  * alarm only refreshes a window, because the row must stay claimable or a full
@@ -232,6 +268,8 @@ export function applyAction(
         blockedReason: 'attempts_exhausted',
         nextActionAt: deadline,
         claimDeadlineAt: undefined,
+        // the transition happened, so the row is no longer being skipped
+        deferredTicks: 0,
       };
     }
     return {
@@ -241,6 +279,7 @@ export function applyAction(
       attempts,
       claimDeadlineAt: deadline,
       nextActionAt: deadline,
+      deferredTicks: 0,
     };
   };
 
@@ -262,7 +301,12 @@ export function applyAction(
         blockedReason: 'attempts_exhausted',
         nextActionAt: deadline,
         claimDeadlineAt: undefined,
+        deferredTicks: 0,
       };
+    // a starvation alarm re-arms the counter and leaves every deadline alone:
+    // the row itself is fine, the capacity around it is not.
+    case 'alarm_starved':
+      return { ...row, deferredTicks: 0, starvedAt: now };
     default:
       return null;
   }

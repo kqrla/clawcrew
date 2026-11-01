@@ -189,7 +189,9 @@ migration is `backend/migrations/20261101000000_budgets-and-evidence.sql`.
 
 **a. budgets as policy plus reservation.** ✅ landed in `domain/budget.ts` and
 two tables, with the state machine and the settled-completeness check enforced by
-the database. we have `tier.budget jsonb NOT NULL`
+the database. the `tier.budget` seed expands into policies on both paths (SQL
+backfill and `policiesFromSeed`), and `tier_budget_gap` lists any tier that
+claims a budget and has none. we have `tier.budget jsonb NOT NULL`
 and **zero call sites that read it** (`grep -rn budget backend/src` returns the
 tick's work budget and a comment). we store a spending limit and never enforce
 it, which in a dark factory is the exposure that matters most. take paperclip's
