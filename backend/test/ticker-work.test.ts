@@ -113,7 +113,7 @@ describe('the tick runs the sweep', () => {
     expect(h.saved).toEqual([]);
   });
 
-  it('records an unclaimable row as a finding instead of mutating it', async () => {
+  it('records an unclaimable row and refreshes its window', async () => {
     const unclaimable = work({
       state: 'ready',
       lease: undefined,
@@ -124,9 +124,11 @@ describe('the tick runs the sweep', () => {
     const report = await runTick(h, { now: NOW });
 
     expect(report.workFindings).toBe(1);
-    expect(report.workSwept).toBe(0);
-    expect(h.saved).toEqual([]);
+    expect(report.workSwept).toBe(0); // a refreshed window is not a transition
     expect(h.findings[0]![0]).toMatchObject({ kind: 'alarm_unclaimable', rowId: 'w1' });
+    // but the row is written, because a stranded row is worse than a repeated alarm
+    expect(h.saved).toHaveLength(1);
+    expect(h.saved[0]!.claimDeadlineAt).toBeDefined();
   });
 
   it('does not repair a structurally invalid row, it reports it', async () => {
@@ -150,6 +152,17 @@ describe('the tick runs the sweep', () => {
     expect(report.workSwept).toBe(0);
     expect(report.workFindings).toBe(0);
     expect(h.saved).toEqual([]);
+  });
+
+  it('defers transitions past the budget instead of dropping them', async () => {
+    const rows = ['w1', 'w2', 'w3'].map((id) =>
+      work({ id, lease: { holder: 'seat.a', expiresAt: past(1), renewals: 0 } }),
+    );
+    const h = harness(rows);
+    const report = await runTick(h, { now: NOW, workBudget: 1 });
+
+    expect(report.workReclaimed).toBe(1);
+    expect(report.workDeferred).toBe(2);
   });
 
   it('still ticks when no work ports are wired', async () => {

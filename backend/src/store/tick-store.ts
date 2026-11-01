@@ -49,7 +49,7 @@ interface RelayRow {
   dead_reason: string | null;
 }
 
-interface TaskRow {
+export interface TaskRow {
   id: string;
   state: string;
   owner_tier: string;
@@ -141,6 +141,53 @@ export function toWork(r: TaskRow): WorkRow {
     cancelledReason: r.cancelled_reason ?? undefined,
     cancelledBy: r.cancelled_by ?? undefined,
   };
+}
+
+/** the one write path for a work row. every state change goes through it. */
+export async function writeWork(db: Queryable, w: WorkRow): Promise<void> {
+  await db.query(
+    `update task
+        set state = $2, attempts = $3, next_action_at = $4,
+            claim_deadline_at = $5, blocking_reason = $6,
+            custody_holder = $7, custody_expires_at = $8,
+            custody_renewals = $9, evidence_ref = $10,
+            cancelled_reason = $11, cancelled_by = $12,
+            progress_version = $13,
+            completed_at = case when $2 = 'done' then coalesce(completed_at, now())
+                                else completed_at end
+      where id = $1`,
+    [
+      w.id,
+      w.state,
+      w.attempts,
+      w.nextActionAt ?? null,
+      w.claimDeadlineAt ?? null,
+      w.blockedReason ?? null,
+      w.lease?.holder ?? null,
+      w.lease?.expiresAt ?? null,
+      w.lease?.renewals ?? 0,
+      w.evidenceRef ?? null,
+      w.cancelledReason ?? null,
+      w.cancelledBy ?? null,
+      w.progressVersion,
+    ],
+  );
+}
+
+/** identical findings collapse: the condition is the identity, not the tick. */
+export function findingKey(f: Action): string {
+  switch (f.kind) {
+    // one per row, not one per window: a row nobody can claim is one finding
+    // with a long history, and re-arming must not mint a new alarm each time.
+    case 'alarm_unclaimable':
+      return `${f.kind}:${f.rowId}`;
+    case 'alarm_stall':
+      return `${f.kind}:${f.rowId}:${f.since}`;
+    case 'violation':
+      return `${f.kind}:${f.rowId}:${f.rule}`;
+    default:
+      return `${f.kind}:${f.rowId}`;
+  }
 }
 
 export interface TickStoreOptions {
@@ -239,33 +286,7 @@ export function createTickStore(db: Queryable, opts: TickStoreOptions): TickerPo
     },
 
     async saveWork(w) {
-      await db.query(
-        `update task
-            set state = $2, attempts = $3, next_action_at = $4,
-                claim_deadline_at = $5, blocking_reason = $6,
-                custody_holder = $7, custody_expires_at = $8,
-                custody_renewals = $9, evidence_ref = $10,
-                cancelled_reason = $11, cancelled_by = $12,
-                progress_version = $13,
-                completed_at = case when $2 = 'done' then coalesce(completed_at, now())
-                                    else completed_at end
-          where id = $1`,
-        [
-          w.id,
-          w.state,
-          w.attempts,
-          w.nextActionAt ?? null,
-          w.claimDeadlineAt ?? null,
-          w.blockedReason ?? null,
-          w.lease?.holder ?? null,
-          w.lease?.expiresAt ?? null,
-          w.lease?.renewals ?? 0,
-          w.evidenceRef ?? null,
-          w.cancelledReason ?? null,
-          w.cancelledBy ?? null,
-          w.progressVersion,
-        ],
-      );
+      await writeWork(db, w);
     },
 
     /** findings go on the hash chain, so an alarm cannot be quietly dropped */
@@ -278,7 +299,17 @@ export function createTickStore(db: Queryable, opts: TickStoreOptions): TickerPo
       let prevHash = head.rows[0]?.hash ?? GENESIS;
 
       for (const f of findings) {
-        const payload = { ...f } as Record<string, unknown>;
+        // one finding per condition, not one per tick: a stall that persists for
+        // a day is one record with its original deadline, not 17,000 records.
+        const dedupeKey = findingKey(f);
+        const seen = await db.query<{ present: number }>(
+          `select 1 as present from event
+            where stream = 'liveness' and payload->>'dedupeKey' = $1 limit 1`,
+          [dedupeKey],
+        );
+        if (seen.rows.length > 0) continue;
+
+        const payload = { ...f, dedupeKey } as Record<string, unknown>;
         const hash = hashOf(prevHash, seq, at, payload);
         await db.query(
           `insert into event (stream, seq, id, at, payload, prev_hash, hash)

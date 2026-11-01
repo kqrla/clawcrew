@@ -255,10 +255,26 @@ describe('transitions', () => {
     expect(next.attempts).toBe(2);
   });
 
-  it('never mutates a row for an alarm or a violation', () => {
-    const r = row({ state: 'ready', lease: undefined, claimDeadlineAt: past(1) });
+  it('re-arms an unclaimable row instead of stranding it', () => {
+    // a full seat pool is transient: if the window is not refreshed, work that
+    // nobody could take at 10:00 is unclaimable at 11:00 when a seat frees up.
+    const r = row({ state: 'ready', lease: undefined, claimDeadlineAt: past(1), nextActionAt: past(1) });
+    const next = applyAction(
+      r,
+      { kind: 'alarm_unclaimable', rowId: r.id, tier: r.tier, deadline: past(1) },
+      NOW,
+      { claimWindowMs: 600_000 },
+    )!;
+    expect(next.state).toBe('ready');
+    expect(next.claimDeadlineAt).toBe(future(10));
+    expect(next.nextActionAt).toBe(future(10));
+    // and the alarm itself still fired: re-arming is bookkeeping, not a fix
+  });
+
+  it('never writes for a stall alarm or a violation', () => {
+    const r = row({ state: 'blocked', lease: undefined, nextActionAt: past(5) });
     expect(
-      applyAction(r, { kind: 'alarm_unclaimable', rowId: r.id, tier: r.tier, deadline: past(1) }, NOW),
+      applyAction(r, { kind: 'alarm_stall', rowId: r.id, tier: r.tier, since: past(5) }, NOW),
     ).toBeNull();
     expect(applyAction(r, { kind: 'violation', rowId: r.id, rule: 'missing_next_action' }, NOW)).toBeNull();
   });

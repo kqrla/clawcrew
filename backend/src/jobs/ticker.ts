@@ -33,6 +33,8 @@ export interface TickOptions {
   /** renewals without progress before a holder counts as spinning */
   stuckRenewalLimit?: number;
   workBatch?: number;
+  /** transitions applied per tick; the rest defer, visibly, to the next tick */
+  workBudget?: number;
   claimWindowMs?: number;
 }
 
@@ -53,6 +55,8 @@ export interface TickReport {
   workBlocked: number;
   /** alarms and violations: things a human or a tier must look at */
   workFindings: number;
+  /** transitions the budget pushed to the next tick */
+  workDeferred: number;
   lagMs: number;
 }
 
@@ -73,6 +77,7 @@ export async function runTick(ports: TickerPorts, opts: TickOptions): Promise<Ti
     workRevoked: 0,
     workBlocked: 0,
     workFindings: 0,
+    workDeferred: 0,
     lagMs: 0,
   };
 
@@ -141,9 +146,21 @@ export async function runTick(ports: TickerPorts, opts: TickOptions): Promise<Ti
   let workRevoked = 0;
   let workBlocked = 0;
 
+  // a tick is bounded in work, not just in reads: whatever the budget pushes
+  // out is reported as deferred rather than dropped.
+  const budget = opts.workBudget ?? 50;
+  const stateChanges = actions.filter(
+    (a) => a.kind === 'reclaim_expired' || a.kind === 'revoke_spinning' || a.kind === 'exhausted',
+  );
+  const transitions = stateChanges.slice(0, budget);
+  const workDeferred = Math.max(0, stateChanges.length - transitions.length);
+  // re-arming an unclaimable row is bookkeeping, not a transition, so it is not
+  // subject to the budget: dropping it would strand the row instead of delaying it
+  const rearms = actions.filter((a) => a.kind === 'alarm_unclaimable');
+
   if (ports.saveWork) {
     const byId = new Map(work.map((w) => [w.id, w]));
-    for (const a of actions) {
+    for (const a of [...transitions, ...rearms]) {
       const row = byId.get(a.rowId);
       if (!row) continue;
       const next = applyAction(row, a, now, {
@@ -152,6 +169,7 @@ export async function runTick(ports: TickerPorts, opts: TickOptions): Promise<Ti
       if (!next) continue;
       await ports.saveWork(next);
       byId.set(next.id, next);
+      if (a.kind === 'alarm_unclaimable') continue; // a window, not a transition
       workSwept += 1;
       // buckets are by resulting state, not by the action that caused it: a
       // reclaim that spends the last attempt ends blocked, and the report has
@@ -162,8 +180,14 @@ export async function runTick(ports: TickerPorts, opts: TickOptions): Promise<Ti
     }
   }
 
+  // a revoked spinner is both a transition and a finding: the row moves, and
+  // the tier is told that a seat held work without producing. see docs/25 §5.
   const findings = actions.filter(
-    (a) => a.kind === 'alarm_unclaimable' || a.kind === 'alarm_stall' || a.kind === 'violation',
+    (a) =>
+      a.kind === 'alarm_unclaimable' ||
+      a.kind === 'alarm_stall' ||
+      a.kind === 'violation' ||
+      a.kind === 'revoke_spinning',
   );
   if (findings.length > 0 && ports.recordFindings) {
     await ports.recordFindings(findings, now);
@@ -184,6 +208,7 @@ export async function runTick(ports: TickerPorts, opts: TickOptions): Promise<Ti
     workRevoked,
     workBlocked,
     workFindings: findings.length,
+    workDeferred,
     lagMs: lagMs(schedules, now),
   };
 

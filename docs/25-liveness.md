@@ -31,6 +31,20 @@ five states, and every transition is one row update:
 
 the invariant that makes this run for a month is not in the states. it is: **no row may sit in a non-terminal state without a `next_action_at`.** every non-terminal row declares when it will next be looked at, and the tick sweeps for rows whose moment has passed. a row without one is a stall, and stalls are how months are lost.
 
+only five verbs move a row, and each is a pure function in `domain/custody.ts`:
+
+| verb | from | to | refuses when |
+| --- | --- | --- | --- |
+| `claim` | ready | leased | the slice misses a surface, the window lapsed, attempts are spent |
+| `renew` | leased | leased | not the holder, or the lease already expired |
+| `progress` | leased | leased | not the holder. the only verb that resets the spin counter |
+| `complete` | leased | done | not the holder, or the evidence is a sentence instead of a reference |
+| `abandon` | leased | ready or blocked | not the holder, or no reason given |
+
+`renew` extends custody and buys nothing against the spin counter. `progress` is
+the only thing that resets it, which is why it may only be called when something
+a third party could look at actually changed.
+
 this single column is worth more than any monitoring. it means silence is never a valid state, only a deadline that has not arrived.
 
 ## 3 · the four invariants
@@ -40,6 +54,8 @@ the sweep at the top of every tick enforces four things. each corresponds to a w
 **i. no orphaned custody.** a `leased` row whose lease has expired returns to `ready`, `attempts + 1`, with the expired holder recorded. no action by any live process is required, because expiry is a property of the row, not of a reaper.
 
 **ii. no unclaimable work.** a `ready` row that has been claimable past its claim deadline with no successful claim is an **alarm**, not a wait. unclaimable means one of: no seat holds the credential, the slice does not include the objective, or every eligible seat is already leased elsewhere. all three are configuration bugs, and all three are invisible if `ready` is allowed to mean "waiting".
+
+the alarm fires once per row, and the row's claim window is refreshed each time it fires. without the refresh, a queue that was briefly over-subscribed becomes permanently unclaimable: the window lapses while every seat is busy, the row is refused forever, and the alarm repeats into the void. the simulation found this. it is the difference between an alarm and a trap.
 
 **iii. no spinning.** a holder may renew a lease while making no progress. see section 4.
 
@@ -119,41 +135,39 @@ the acceptance test for a month is not "it did something useful". it is: **no ro
 
 ## 10 · what is built
 
-the first five steps are implemented. the remainder are named precisely because
-they are the difference between a rule and a guarantee.
+1. **a deadline on every non-terminal row.** enforced twice: `sweep` reports
+   `missing_next_action`, and `task_nonterminal_deadline` refuses the row at
+   insert time. a constraint cannot be forgotten by a future caller.
+2. **no unclaimable work.** `task_ready_claimable` makes a ready row without a
+   claim deadline unrepresentable; the sweep alarms when the window lapses, and
+   refreshes it so a busy pool cannot strand the row.
+3. **reclaim on expiry**, with `attempts` incremented and the expired holder
+   recorded. a reclaim that spends the last attempt blocks in the same step.
+4. **the spinning detector**, with a per-objective renewal limit, and `progress`
+   as the only verb that resets the counter.
+5. **the worker side**: claim, renew, progress, complete, abandon, each a pure
+   function. the claim is a single conditional update, so two seats racing for
+   the same row produce exactly one winner, decided by the database.
+6. **findings on the hash chain**: alarms and violations and revoked spinners
+   are appended to the `liveness` stream, deduped by condition rather than by
+   tick, so a month of a stuck row is one record and the log cannot be edited
+   afterwards (the store blocks `delete` on `event`).
+7. **bounded ticks.** `workBudget` caps transitions per tick and the remainder is
+   reported as `workDeferred` rather than dropped.
+8. **a month of simulated ticks.** `test/runtime-month.test.ts` runs 4,320 ticks
+   with three seats, a dying holder, a spinning holder, and new work arriving,
+   asserting the invariants on every tick rather than sampling them.
 
-1. **a deadline on every non-terminal row.** done, and enforced twice: `sweep`
-   reports `missing_next_action`, and `task_nonterminal_deadline` refuses the row
-   at insert time. a constraint cannot be forgotten by a future caller.
-2. **no unclaimable work.** done. `task_ready_claimable` makes a ready row
-   without a claim deadline unrepresentable, and the sweep alarms when the
-   deadline passes with no successful claim.
-3. **reclaim on expiry.** done, with `attempts` incremented and the expired
-   holder recorded. a reclaim that spends the last attempt blocks in the same
-   step, so a dead holder cannot burn a tick in a state that is neither
-   retryable nor visible.
-4. **the spinning detector.** done, with a per-objective renewal limit. three
-   renewals without a progress bump revokes the lease and returns the row.
-5. **the sweep runs inside the tick.** done. state transitions are row writes;
-   alarms and violations are findings appended to the `liveness` stream on the
-   event hash chain, so an alarm cannot be quietly dropped and the log cannot be
-   edited afterwards (the store blocks `delete` on `event`).
-6. **no silent terminal state.** done, by constraint: `task_done_evidence` and
-   `task_cancelled_reason`. a row cannot reach a terminal state without the
-   thing that makes it terminal.
+what is still missing, in the order it would bite:
 
-still missing, in order:
-
-7. **bounded ticks with deferral accounting.** `workBatch` caps how much the
-   sweep reads, not what it spends. a tick that consistently hits the cap is
-   currently invisible.
-8. **the simulated clock harness.** `test/ticker-work.test.ts` proves one tick
-   does the right thing; nothing yet proves thirty days of ticks do, and that is
-   the test that matters.
-9. **wiring `progress_version`.** the column exists and is written, but nothing
-   bumps it yet, so the spinning detector cannot fire on real work. until a seat
-   increments it on every artifact written, invariant iii is untestable in
-   production.
+9. **nothing says when a deferral is chronic.** `workDeferred` is counted and
+   then ignored; a tick that defers every cycle needs an alarm, and today it has
+   a number nobody reads.
+10. **no real agents.** the harness drives the domain with scripted seats. it
+    proves the machinery, not the behaviour of a model under a lease, which is
+    the only thing a month actually tests.
+11. **transport adapters.** a relay still cannot deliver, so the org cannot talk
+    to itself across sandboxes (docs/22 §11).
 
 ## 11 · open questions
 

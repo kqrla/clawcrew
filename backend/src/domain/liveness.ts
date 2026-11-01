@@ -107,8 +107,9 @@ export function sweep(rows: WorkRow[], opts: SweepOptions): Action[] {
     if (isTerminal(row)) continue;
 
     // exhausted attempts are terminal-ish: the row must be blocked, by a tier,
-    // with its history, rather than retried forever.
-    if (row.attempts >= row.maxAttempts) {
+    // with its history, rather than retried forever. a row already blocked is
+    // not re-escalated every tick, or the finding becomes the noise floor.
+    if (row.state !== 'blocked' && row.attempts >= row.maxAttempts) {
       actions.push({ kind: 'exhausted', rowId: row.id, tier: row.tier, attempts: row.attempts });
       continue;
     }
@@ -190,9 +191,10 @@ export function canClaim(
 export const DEFAULT_CLAIM_WINDOW_MS = 15 * 60_000;
 
 /**
- * the only three sweep actions that change state. alarms and violations are
- * findings, not transitions: an alarm that mutated a row would hide the bug
- * that caused it.
+ * the transitions the tick persists. two of them change state; the unclaimable
+ * alarm only refreshes a window, because the row must stay claimable or a full
+ * seat pool strands it forever. stall alarms and violations never write: a row
+ * that repaired itself would hide the bug that broke it.
  *
  * reclaiming past max attempts blocks the row in the same step, so a dead
  * holder cannot spend a tick in a state that is neither retryable nor visible.
@@ -233,6 +235,11 @@ export function applyAction(
       return rearmed(action.nextAttempts);
     case 'revoke_spinning':
       return rearmed(row.attempts + 1);
+    // not a state change, and still a finding: the alarm says nobody could take
+    // it, and re-arming the window is what keeps a busy pool from permanently
+    // stranding work that a freed seat could still claim.
+    case 'alarm_unclaimable':
+      return { ...row, claimDeadlineAt: deadline, nextActionAt: deadline };
     case 'exhausted':
       return {
         ...row,
