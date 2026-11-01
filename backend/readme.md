@@ -2,7 +2,7 @@
 
 the engine that enforces the spec in [`../docs`](../docs). letters before lines: this is v0.1 of the backend, and it implements the parts that are load-bearing and testable, not the whole chart.
 
-180 tests, zero failing. typecheck clean under `strict` + `noUncheckedIndexedAccess`.
+187 tests, zero failing. typecheck clean under `strict` + `noUncheckedIndexedAccess`.
 
 ## stack
 
@@ -46,7 +46,7 @@ src/store/       postgres. the only place that talks to a db
 src/server/      hono app + a demo org for clicking around
 src/cli/tick.ts  one pass: expire leases, bounce handoffs, write events
 migrations/      schema, including the immutability trigger
-test/            180 tests, no database required
+test/            187 tests, no database required
 ```
 
 ## run it
@@ -131,6 +131,23 @@ const registry = PluginRegistry.fromConfig(
 1. surface registry + registration endpoint, because every other write depends on ownership existing
 2. secondment request/authorize flow, because it is the least-proven design in the spec
 3. the auditor running as a separate process with a read-only role, because an auditor with the workers' credentials is a rubber stamp
+
+## artifacts on insforge storage
+
+evidence blobs live in the `artifacts` bucket, content addressed: the object key is
+`sha256/<first two hex>/<full hash>`. the hash is the identity, so a retry overwrites
+identical bytes instead of appending a version, and a read that does not hash back to
+its key is treated as corruption rather than a new document.
+
+two wire facts, discovered by probing rather than reading:
+
+1. upload is `PUT /api/storage/buckets/<bucket>/objects/<key>` with **multipart form-data**
+   and a field named `file`. a raw body is rejected as `STORAGE_INVALID_PARAMETER`.
+2. download answers **302 to a signed url**, so the client must follow redirects or it
+   silently reads the redirect body and fails the hash check.
+
+verify with `node --import tsx src/cli/verify-artifacts.ts`, which round-trips real bytes
+against the real bucket.
 
 ## hosting: insforge, and only insforge
 
