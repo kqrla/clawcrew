@@ -40,6 +40,10 @@ the wedge is narrower than the vision: run **one** revenue-bearing surface end t
 
 ## reading order
 
+if you want the argument rather than the contract, read [concept/](concept/readme.md) first. eight short pieces on hierarchical multi-agent systems, the org chart as an authority graph, autonomy over a month, divergence and convergence, collaboration, agent to agent, provenance, and prioritization. it explains why each mechanism exists, which the specification below cannot do without doubling in length.
+
+the specification itself:
+
 | doc | what it settles |
 | --- | --- |
 | [00-thesis](docs/00-thesis.md) | the argument, in one page |
