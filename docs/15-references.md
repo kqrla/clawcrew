@@ -55,6 +55,25 @@ reference material on the seven canonical topologies and four human-ai team patt
 
 **not taken:** topology as the deliverable. a topology diagram is a picture of a decision that has already been made about authority. this repo specifies the decision.
 
+## hierarchical multi-agent systems, read at the source
+
+six systems were read as code rather than as announcements: paperclip, CAMEL
+`Workforce`, AutoGen `MagenticOneGroupChat`, MetaGPT, OpenAI Swarm, and CrewAI's
+`Process.hierarchical`. the detail, with file-level citation and an honest note
+on how deep each one went, is in [27](27-prior-art.md).
+
+**taken:** paperclip's `case_handoffs` columns (independent arrival at
+`attempt_count` + `next_attempt_at` + `lease_expires_at`), its budget policy and
+reservation split, and its Ed25519 agent identity keys; CAMEL's `REPLAN` as a
+recovery verb distinct from retry; Magentic-One's decaying stall counter.
+
+**not taken:** the single in-process coordinator, model-judged progress,
+blackboard routing, stateless handoffs, and a manager standing in for a hierarchy.
+
+**the gap nobody has closed:** a progress claim that only resets when an
+external, code-computed metric moves. `progress` is still self-reported, which is
+the one hole this reading leaves open.
+
 ## standards and primitives worth aligning to
 
 - **mcp** for tool transport. tool definitions pinned by hash; tool output treated as untrusted input.
