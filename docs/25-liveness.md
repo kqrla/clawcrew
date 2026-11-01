@@ -117,14 +117,43 @@ the harness runs the real tick loop against the real store with a **simulated cl
 
 the acceptance test for a month is not "it did something useful". it is: **no row entered a non-terminal state without a deadline, no state transition happened without a reason, and the final state is reproducible from the record alone.**
 
-## 10 · build order
+## 10 · what is built
 
-1. `next_action_at` on every work row, and the sweep that refuses rows without one. everything else depends on it.
-2. reclaim on expiry, with `attempts` and the expired holder recorded.
-3. the spinning detector, because it is the cheapest high-value control in the system.
-4. the claim-deadline alarm, which turns configuration bugs into alerts.
-5. bounded ticks with deferral accounting.
-6. the simulated clock harness, before any of the above is trusted in a real month.
+the first five steps are implemented. the remainder are named precisely because
+they are the difference between a rule and a guarantee.
+
+1. **a deadline on every non-terminal row.** done, and enforced twice: `sweep`
+   reports `missing_next_action`, and `task_nonterminal_deadline` refuses the row
+   at insert time. a constraint cannot be forgotten by a future caller.
+2. **no unclaimable work.** done. `task_ready_claimable` makes a ready row
+   without a claim deadline unrepresentable, and the sweep alarms when the
+   deadline passes with no successful claim.
+3. **reclaim on expiry.** done, with `attempts` incremented and the expired
+   holder recorded. a reclaim that spends the last attempt blocks in the same
+   step, so a dead holder cannot burn a tick in a state that is neither
+   retryable nor visible.
+4. **the spinning detector.** done, with a per-objective renewal limit. three
+   renewals without a progress bump revokes the lease and returns the row.
+5. **the sweep runs inside the tick.** done. state transitions are row writes;
+   alarms and violations are findings appended to the `liveness` stream on the
+   event hash chain, so an alarm cannot be quietly dropped and the log cannot be
+   edited afterwards (the store blocks `delete` on `event`).
+6. **no silent terminal state.** done, by constraint: `task_done_evidence` and
+   `task_cancelled_reason`. a row cannot reach a terminal state without the
+   thing that makes it terminal.
+
+still missing, in order:
+
+7. **bounded ticks with deferral accounting.** `workBatch` caps how much the
+   sweep reads, not what it spends. a tick that consistently hits the cap is
+   currently invisible.
+8. **the simulated clock harness.** `test/ticker-work.test.ts` proves one tick
+   does the right thing; nothing yet proves thirty days of ticks do, and that is
+   the test that matters.
+9. **wiring `progress_version`.** the column exists and is written, but nothing
+   bumps it yet, so the spinning detector cannot fire on real work. until a seat
+   increments it on every artifact written, invariant iii is untestable in
+   production.
 
 ## 11 · open questions
 

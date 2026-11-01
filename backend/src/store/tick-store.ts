@@ -1,4 +1,6 @@
 import { Schedule, Priority, CatchUp } from '../domain/scheduler.js';
+import { WorkRow, WorkState, Action } from '../domain/liveness.js';
+import { GENESIS, hashOf } from '../domain/events.js';
 import { RelayMessage, RelayState } from '../domain/relay-queue.js';
 import { TickerPorts } from '../jobs/ticker.js';
 
@@ -47,6 +49,27 @@ interface RelayRow {
   dead_reason: string | null;
 }
 
+interface TaskRow {
+  id: string;
+  state: string;
+  owner_tier: string;
+  objective_id: string | null;
+  surfaces: string[] | null;
+  next_action_at: string | Date | null;
+  claim_deadline_at: string | Date | null;
+  progress_version: number;
+  progress_at: string | Date | null;
+  attempts: number;
+  max_attempts: number;
+  blocking_reason: string | null;
+  evidence_ref: string | null;
+  cancelled_reason: string | null;
+  cancelled_by: string | null;
+  custody_holder: string | null;
+  custody_expires_at: string | Date | null;
+  custody_renewals: number;
+}
+
 const iso = (v: string | Date): string => (v instanceof Date ? v.toISOString() : v);
 const isoOrUndef = (v: string | Date | null): string | undefined =>
   v === null ? undefined : iso(v);
@@ -89,6 +112,34 @@ export function toRelay(r: RelayRow): RelayMessage {
     path: r.path,
     ...(r.acked_at ? { ackedAt: iso(r.acked_at) } : {}),
     ...(r.dead_reason ? { deadReason: r.dead_reason } : {}),
+  };
+}
+
+export function toWork(r: TaskRow): WorkRow {
+  return {
+    id: r.id,
+    state: r.state as WorkState,
+    tier: r.owner_tier,
+    objectiveRef: r.objective_id ?? '',
+    surfaces: r.surfaces ?? [],
+    nextActionAt: isoOrUndef(r.next_action_at),
+    claimDeadlineAt: isoOrUndef(r.claim_deadline_at),
+    lease:
+      r.custody_holder && r.custody_expires_at
+        ? {
+            holder: r.custody_holder,
+            expiresAt: iso(r.custody_expires_at),
+            renewals: r.custody_renewals,
+          }
+        : undefined,
+    progressVersion: r.progress_version,
+    progressAt: isoOrUndef(r.progress_at),
+    attempts: r.attempts,
+    maxAttempts: r.max_attempts,
+    blockedReason: r.blocking_reason ?? undefined,
+    evidenceRef: r.evidence_ref ?? undefined,
+    cancelledReason: r.cancelled_reason ?? undefined,
+    cancelledBy: r.cancelled_by ?? undefined,
   };
 }
 
@@ -170,6 +221,73 @@ export function createTickStore(db: Queryable, opts: TickStoreOptions): TickerPo
     async deliver(m) {
       if (!opts.onDeliver) return 'nack';
       return opts.onDeliver(m);
+    },
+
+    async loadWork(limit = 200) {
+      const r = await db.query<TaskRow>(
+        `select id, state, owner_tier, objective_id, surfaces, next_action_at,
+                claim_deadline_at, progress_version, progress_at, attempts,
+                max_attempts, blocking_reason, evidence_ref, cancelled_reason,
+                cancelled_by, custody_holder, custody_expires_at, custody_renewals
+           from task
+          where state in ('ready', 'leased', 'blocked')
+          order by next_action_at nulls last
+          limit $1`,
+        [limit],
+      );
+      return r.rows.map(toWork);
+    },
+
+    async saveWork(w) {
+      await db.query(
+        `update task
+            set state = $2, attempts = $3, next_action_at = $4,
+                claim_deadline_at = $5, blocking_reason = $6,
+                custody_holder = $7, custody_expires_at = $8,
+                custody_renewals = $9, evidence_ref = $10,
+                cancelled_reason = $11, cancelled_by = $12,
+                progress_version = $13,
+                completed_at = case when $2 = 'done' then coalesce(completed_at, now())
+                                    else completed_at end
+          where id = $1`,
+        [
+          w.id,
+          w.state,
+          w.attempts,
+          w.nextActionAt ?? null,
+          w.claimDeadlineAt ?? null,
+          w.blockedReason ?? null,
+          w.lease?.holder ?? null,
+          w.lease?.expiresAt ?? null,
+          w.lease?.renewals ?? 0,
+          w.evidenceRef ?? null,
+          w.cancelledReason ?? null,
+          w.cancelledBy ?? null,
+          w.progressVersion,
+        ],
+      );
+    },
+
+    /** findings go on the hash chain, so an alarm cannot be quietly dropped */
+    async recordFindings(findings: Action[], at: string) {
+      if (findings.length === 0) return;
+      const head = await db.query<{ seq: string | number; hash: string }>(
+        `select seq, hash from event where stream = 'liveness' order by seq desc limit 1`,
+      );
+      let seq = head.rows[0] ? Number(head.rows[0].seq) + 1 : 1;
+      let prevHash = head.rows[0]?.hash ?? GENESIS;
+
+      for (const f of findings) {
+        const payload = { ...f } as Record<string, unknown>;
+        const hash = hashOf(prevHash, seq, at, payload);
+        await db.query(
+          `insert into event (stream, seq, id, at, payload, prev_hash, hash)
+           values ('liveness', $1, $2, $3, $4, $5, $6)`,
+          [seq, `evt.${seq}.${hash.slice(0, 8)}`, at, payload, prevHash, hash],
+        );
+        prevHash = hash;
+        seq += 1;
+      }
     },
 
     async heartbeat(h) {

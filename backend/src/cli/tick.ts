@@ -48,7 +48,7 @@ async function main(): Promise<void> {
   const once_ = async (): Promise<void> => {
     const now = new Date().toISOString();
     const report = await runTick(ports, { now, tickCount: ++tickCount });
-    if (once || report.fired > 0 || report.relayLeased > 0) {
+    if (once || report.fired > 0 || report.relayLeased > 0 || report.workSwept > 0 || report.workFindings > 0) {
       console.log(JSON.stringify(report));
     }
   };

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   Action,
   WorkRow,
+  applyAction,
   canClaim,
   healthy,
   isTerminal,
@@ -213,5 +214,57 @@ describe('month simulation', () => {
     expect(exhaustedAt).toBeDefined();
     expect(r.state).toBe('blocked');
     expect(r.blockedReason).toBe('attempts_exhausted');
+  });
+});
+
+describe('transitions', () => {
+  const expired = (r: WorkRow): Action => ({
+    kind: 'reclaim_expired',
+    rowId: r.id,
+    holder: r.lease!.holder,
+    nextAttempts: r.attempts + 1,
+  });
+
+  it('re-arms a reclaimed row so it is claimable and alarming', () => {
+    const r = row({ lease: { holder: 'h', expiresAt: past(1), renewals: 0 } });
+    const next = applyAction(r, expired(r), NOW, { claimWindowMs: 600_000 })!;
+
+    expect(next.state).toBe('ready');
+    expect(next.lease).toBeUndefined();
+    expect(next.claimDeadlineAt).toBe(future(10));
+    expect(next.nextActionAt).toBe(future(10));
+    // the resulting row must satisfy the sweeps own rules
+    expect(violations(next)).toEqual([]);
+  });
+
+  it('blocks rather than retrying when the last attempt dies', () => {
+    const r = row({ attempts: 2, maxAttempts: 3, lease: { holder: 'h', expiresAt: past(1), renewals: 0 } });
+    const next = applyAction(r, expired(r), NOW)!;
+
+    expect(next.state).toBe('blocked');
+    expect(next.blockedReason).toBe('attempts_exhausted');
+    expect(next.attempts).toBe(3);
+    expect(next.claimDeadlineAt).toBeUndefined();
+    expect(violations(next)).toEqual([]);
+  });
+
+  it('counts a revoked spinning holder as an attempt', () => {
+    const r = row({ attempts: 1, lease: { holder: 'h', expiresAt: future(5), renewals: 3 } });
+    const next = applyAction(r, { kind: 'revoke_spinning', rowId: r.id, holder: 'h', renewals: 3 }, NOW)!;
+    expect(next.state).toBe('ready');
+    expect(next.attempts).toBe(2);
+  });
+
+  it('never mutates a row for an alarm or a violation', () => {
+    const r = row({ state: 'ready', lease: undefined, claimDeadlineAt: past(1) });
+    expect(
+      applyAction(r, { kind: 'alarm_unclaimable', rowId: r.id, tier: r.tier, deadline: past(1) }, NOW),
+    ).toBeNull();
+    expect(applyAction(r, { kind: 'violation', rowId: r.id, rule: 'missing_next_action' }, NOW)).toBeNull();
+  });
+
+  it('treats a claimable row without a deadline as a bug', () => {
+    const r = row({ state: 'ready', lease: undefined, claimDeadlineAt: undefined });
+    expect(violations(r)).toContain('ready_without_claim_deadline');
   });
 });

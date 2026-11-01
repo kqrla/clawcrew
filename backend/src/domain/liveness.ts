@@ -59,6 +59,7 @@ export type Action =
 
 export type ViolationRule =
   | 'missing_next_action'
+  | 'ready_without_claim_deadline'
   | 'leased_without_lease'
   | 'done_without_evidence'
   | 'cancelled_without_reason';
@@ -82,6 +83,9 @@ export function violations(row: WorkRow): ViolationRule[] {
     out.push('cancelled_without_reason');
   }
   if (!isTerminal(row) && !row.nextActionAt) out.push('missing_next_action');
+  // a ready row with no claim deadline can never be reported unclaimable, which
+  // makes it silently immortal. see docs/25 §3 ii.
+  if (row.state === 'ready' && !row.claimDeadlineAt) out.push('ready_without_claim_deadline');
   return out;
 }
 
@@ -180,4 +184,65 @@ export function canClaim(
   if (uncovered.length > 0) return { ok: false, reason: `slice_missing:${uncovered.join(',')}` };
   if (row.attempts >= row.maxAttempts) return { ok: false, reason: 'attempts_exhausted' };
   return { ok: true };
+}
+
+/** how long a reclaimed row waits to be picked up before it alarms */
+export const DEFAULT_CLAIM_WINDOW_MS = 15 * 60_000;
+
+/**
+ * the only three sweep actions that change state. alarms and violations are
+ * findings, not transitions: an alarm that mutated a row would hide the bug
+ * that caused it.
+ *
+ * reclaiming past max attempts blocks the row in the same step, so a dead
+ * holder cannot spend a tick in a state that is neither retryable nor visible.
+ */
+export function applyAction(
+  row: WorkRow,
+  action: Action,
+  now: string,
+  opts: { claimWindowMs?: number } = {},
+): WorkRow | null {
+  const windowMs = opts.claimWindowMs ?? DEFAULT_CLAIM_WINDOW_MS;
+  const deadline = new Date(ms(now) + windowMs).toISOString();
+
+  const rearmed = (attempts: number): WorkRow => {
+    if (attempts >= row.maxAttempts) {
+      return {
+        ...row,
+        state: 'blocked',
+        lease: undefined,
+        attempts,
+        blockedReason: 'attempts_exhausted',
+        nextActionAt: deadline,
+        claimDeadlineAt: undefined,
+      };
+    }
+    return {
+      ...row,
+      state: 'ready',
+      lease: undefined,
+      attempts,
+      claimDeadlineAt: deadline,
+      nextActionAt: deadline,
+    };
+  };
+
+  switch (action.kind) {
+    case 'reclaim_expired':
+      return rearmed(action.nextAttempts);
+    case 'revoke_spinning':
+      return rearmed(row.attempts + 1);
+    case 'exhausted':
+      return {
+        ...row,
+        state: 'blocked',
+        lease: undefined,
+        blockedReason: 'attempts_exhausted',
+        nextActionAt: deadline,
+        claimDeadlineAt: undefined,
+      };
+    default:
+      return null;
+  }
 }
