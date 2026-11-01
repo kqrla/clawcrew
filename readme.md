@@ -61,6 +61,7 @@ the wedge is narrower than the vision: run **one** revenue-bearing surface end t
 | [16-durability](docs/16-durability-and-projections.md) | the record, the artifacts, and why plane and karakeep are projections |
 | [17-sandbox](docs/17-sandbox-permeability-and-convergence.md) | isolation plus permeability, the relay, and how parallel teams converge |
 | [18-a2a](docs/18-a2a-boundary.md) | inter-org comms, and why a2a is a port rather than a platform |
+| [19-taxonomy](docs/19-position-in-the-taxonomy.md) | our position on the five axes of hmas, and the horizon defect it exposed |
 | [backend](backend/readme.md) | the working engine: stack, plugin surface, 114 tests |
 
 diagram: [diagrams/org-model.svg](diagrams/org-model.svg)
