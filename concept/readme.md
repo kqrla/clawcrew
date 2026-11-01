@@ -33,6 +33,7 @@ everything in here reduces to four arguments, and each one is a correction of a 
 | [10-adversarial-qa](10-adversarial-qa/readme.md) | why an org cannot certify its own work, and what replaces the review |
 | [11-slices](11-slices/readme.md) | why no seat sees the whole picture, and what each one gets instead |
 | [12-identity-and-money](12-identity-and-money/readme.md) | how the org holds its own keys, its own money, and what it refuses to do with them |
+| [13-ontology](13-ontology/readme.md) | why a slice carries its own vocabulary, and what "done" means when the work is not code |
 
 the order is not arbitrary. authority has to exist before collaboration means anything, and provenance has to exist before prioritization can be trusted, because priority without a record is just whoever spoke last.
 

@@ -78,6 +78,7 @@ export interface TaskRow {
   replanned_by: string | null;
   replanned_at: string | Date | null;
   deferred_ticks: number | null;
+  kind: string | null;
   starved_at: string | Date | null;
 }
 
@@ -132,6 +133,7 @@ export function toWork(r: TaskRow): WorkRow {
     state: r.state as WorkState,
     tier: r.owner_tier,
     objectiveRef: r.objective_id ?? '',
+    ...(r.kind ? { kind: r.kind as WorkRow['kind'] } : {}),
     surfaces: r.surfaces ?? [],
     nextActionAt: isoOrUndef(r.next_action_at),
     claimDeadlineAt: isoOrUndef(r.claim_deadline_at),
@@ -180,7 +182,7 @@ export async function writeWork(db: Queryable, w: WorkRow): Promise<void> {
             metric_value_at = $16, metric_observed_at = $17,
             claim_key = $18, input_fingerprint = $19, last_claim_at = $20,
             replanned_by = $21, replanned_at = $22,
-            deferred_ticks = $23, starved_at = $24,
+            deferred_ticks = $23, starved_at = $24, kind = $25,
             completed_at = case when $2 = 'done' then coalesce(completed_at, now())
                                 else completed_at end
       where id = $1`,
@@ -209,6 +211,7 @@ export async function writeWork(db: Queryable, w: WorkRow): Promise<void> {
       w.replannedAt ?? null,
       w.deferredTicks ?? 0,
       w.starvedAt ?? null,
+      w.kind ?? null,
     ],
   );
 }

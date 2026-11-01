@@ -1,0 +1,32 @@
+{
+  "slice": "repo.orchart",
+  "version": 1,
+  "depth": "graph",
+  "kinds": ["code", "data"],
+  "classes": ["Commit", "Branch", "TestRun", "Migration"],
+  "actions": ["commit", "branch", "revert", "migrate"],
+  "axioms": [
+    "a commit has exactly one parent branch",
+    "a test run belongs to exactly one commit",
+    "a migration that has run on a shared database is never reverted in place"
+  ],
+  "terms": [
+    { "id": "bug", "label": "bug", "aliases": ["defect", "issue", "breakage"], "category": "change" },
+    { "id": "regression", "label": "regression", "aliases": ["broke something that worked"], "parent": "bug" },
+    { "id": "flake", "label": "flaky test", "aliases": ["flake", "flaky", "intermittent failure"], "parent": "bug", "excludes": ["regression"] },
+    { "id": "feature", "label": "feature", "aliases": ["feat", "capability", "new behaviour"], "category": "change" },
+    { "id": "chore", "label": "chore", "aliases": ["maintenance", "cleanup", "tidy"], "category": "change" },
+    { "id": "migration", "label": "migration", "aliases": ["schema change", "ddl", "backfill"], "parent": "chore" },
+    { "id": "incident", "label": "incident", "aliases": ["outage", "sev1", "production issue"], "category": "event" }
+  ],
+  "acceptance": {
+    "code": {
+      "evidence": ["commit:", "run:"],
+      "gate": "the declared test command exits 0 on the tree that commit points at, and the commit is reachable from the branch the tier owns"
+    },
+    "data": {
+      "evidence": ["sql:"],
+      "gate": "the query runs against the migrated schema and the row count reconciles with the pre-migration count plus the stated delta"
+    }
+  }
+}

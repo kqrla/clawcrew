@@ -26,7 +26,7 @@ const COLUMNS = `id, state, owner_tier, objective_id, surfaces, next_action_at,
                  cancelled_by, custody_holder, custody_expires_at, custody_renewals,
                  brief, objective_version, metric_value_at, metric_observed_at,
                  claim_key, input_fingerprint, last_claim_at,
-                 replanned_by, replanned_at, deferred_ticks, starved_at`;
+                 replanned_by, replanned_at, deferred_ticks, starved_at, kind`;
 
 export interface WorkStore {
   load(id: string): Promise<WorkRow | null>;

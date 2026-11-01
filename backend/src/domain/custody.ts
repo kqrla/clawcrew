@@ -9,6 +9,7 @@
  */
 import { WorkRow, canClaim } from './liveness.js';
 import { isReference } from './relay.js';
+import { evidenceFits } from './ontology.js';
 
 export const DEFAULT_LEASE_TTL_MS = 5 * 60_000;
 export const DEFAULT_CLAIM_WINDOW_MS = 15 * 60_000;
@@ -166,7 +167,15 @@ export function progress(
 export function complete(row: WorkRow, holder: string, evidenceRef: string, now: string): CustodyResult {
   const refuse = held(row, holder, now);
   if (refuse) return refuse;
-  if (!isReference(evidenceRef)) return { ok: false, reason: 'evidence_must_be_a_reference' };
+  // docs/29: the kind of work decides what can prove it. without this a deal is
+  // closed with a commit hash and nobody notices, because the field is populated.
+  if (row.kind) {
+    const fits = evidenceFits(row.kind, evidenceRef);
+    if (!fits.ok) return { ok: false, reason: fits.reason };
+  } else if (!isReference(evidenceRef)) {
+    // unkinded work predates the ontology and keeps the payload rule it had
+    return { ok: false, reason: 'evidence_must_be_a_reference' };
+  }
 
   return {
     ok: true,
