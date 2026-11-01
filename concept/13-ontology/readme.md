@@ -4,7 +4,7 @@ the rule: **a slice carries its own vocabulary, and every slice carries the same
 
 [11-slices](11-slices/readme.md) says a seat sees a slice and never the whole picture. it does not say what the slice is *made of*, and the current answer is a list of surface strings plus a free-text brief. that answer is only true for one kind of work, the kind where a surface is a file.
 
-a factory that also runs a pipeline, a docs site, a support queue and a dataset has surfaces that are not files. `repo.orchart` and `crm.pipeline` are both surfaces; a commit hash proves something about the first and nothing at all about the second. the layer that knows the difference is the ontology, and it lives per slice.
+a factory that also prices a product, ships a video, scans its own deployment and keeps a ledger has surfaces that are not files. `code.repo` and `financials.rails` are both surfaces; a commit hash proves something about the first and nothing at all about the second. the layer that knows the difference is the ontology, and it lives per slice.
 
 ## three sources, one piece each
 
@@ -14,28 +14,32 @@ a factory that also runs a pipeline, a docs site, a support queue and a dataset 
 
 the first: **an alias is provenance, and the canonical term is a resolution, not a replacement.** "dev", "coding", "sw eng" all resolve to `programming`, and the original phrasing is kept. the raw term is evidence about who wrote it and how the org actually talks, and a system that normalises it away has deleted the most honest data it had.
 
-the second: **the same term is not equally relevant to every seat.** memorium weights tags per persona. here it is per seat, and it solves a problem a single global vocabulary creates: `stage` means deal state to sales and deployment environment to ops. one canonical id, two slices, two weights, no ambiguity at the point of use.
+the second: **the same term is not equally relevant to every seat.** memorium weights tags per persona. here it is per seat, and it solves a problem a single global vocabulary creates: `render` means a final media asset to the studio and a templated page to docs; `secret` is the security slice's whole job and a footnote to the code slice. one canonical id, two slices, two weights, no ambiguity at the point of use.
 
-**kiro, on the brief.** kiro's spec is three artifacts, requirements with acceptance criteria, a design, and discrete tasks, plus a bugfix variant that states current, expected and unchanged behaviour. that shape is not about code and it survives translation: a deal needs qualification criteria, a sequence of touches and steps; a document needs claims, an outline and sections; a dataset migration needs a schema intent, a join plan and backfill batches. what must *not* transfer is the assumption underneath it, that the artifact is a file under version control and the evidence is a test run. take the shape, drop the substrate.
+**kiro, on the brief.** kiro's spec is three artifacts, requirements with acceptance criteria, a design, and discrete tasks, plus a bugfix variant that states current, expected and unchanged behaviour. that shape is not about code and it survives translation: a video needs a brief, a shot list and edit passes; a document needs claims, an outline and sections; a migration needs a schema intent, a join plan and backfill batches. what must *not* transfer is the assumption underneath it, that the artifact is a file under version control and the evidence is a test run. take the shape, drop the substrate.
 
 ## the skeleton, and the vocabulary
 
-the shared half is small and it is the only thing that makes cross-slice reasoning possible at all: a **class** (what kinds of thing exist here), an **individual** (an instance of one), a **relation** (how two individuals connect, with direction), an **axiom** (a statement that constrains the graph, like "a deal has exactly one owner"), an **action** (a verb a seat may apply to a class), a **term** (the canonical name, its aliases, its parent, its exclusions), and an **evidence type** (what a completion reference must resolve to).
+the shared half is small and it is the only thing that makes cross-slice reasoning possible at all: a **class** (what kinds of thing exist here), an **individual** (an instance of one), a **relation** (how two individuals connect, with direction), an **axiom** (a statement that constrains the graph, like "an entry has exactly two sides and they sum to zero"), an **action** (a verb a seat may apply to a class), a **term** (the canonical name, its aliases, its parent, its exclusions), and an **evidence type** (what a completion reference must resolve to).
 
 the per-slice half is everything that makes those concrete, and it is where the org's claim about itself actually lives.
 
-| task kind | done is proved by | a gate that cannot be talked around |
+| slice | done is proved by | a gate that cannot be talked around |
 | --- | --- | --- |
-| code | a commit and a run of the test command | the run's exit code and the tree it ran on |
-| doc | a published url and a content hash | the url resolves and the hash matches the source |
-| data | a query result and a row count delta | the number moved, computed outside the seat |
-| deal | a crm record id and a stage transition | the record exists at that stage after the run |
-| design | an asset hash and an approval | the hash is pinned and someone with standing affirmed it |
-| research | citations and the claims they support | every claim maps to a source that exists |
-| support | a ticket id and its resolution state | the ticket closed by someone other than the author |
-| ops | a check and the window it covers | the check ran across the whole window |
+| design | a pinned file and an approval | the hash matches the version and someone with standing affirmed it |
+| code | a commit and a test run | the run's exit code on the tree it ran against |
+| research | a sheet or query, with the sample size | the numbers reproduce and the confidence is named |
+| security | a scan against the deployed revision | no open finding above threshold, unaccepted |
+| financials | the provider's own record | the object exists at the provider with the amount and the metadata |
+| media | an approved render | hash matches, spec matches, consent on record |
+| operations | a check across a window | it ran for the whole window it claims |
+| accounting | a balanced trial balance | the entry posts and the period reconciles |
+| support | a ticket id and its resolution | closed by someone other than the author |
+| documentation | a url and a content hash | the url resolves and every claim cites a source |
 
-the right-hand column is the point. one shape, and four of these cannot be faked by a seat talking about itself, which is the same standard [07-provenance](../07-provenance/readme.md) sets for the audit trail.
+the right-hand column is the point. one shape, and none of these can be faked by a seat talking about itself, which is the same standard [07-provenance](../07-provenance/readme.md) sets for the audit trail.
+
+and the slices declare their edges: each one names the contracts it fulfils and the ones it cannot work without. a business is then a *set* of slices whose requirements are all met inside the set, which is what plug and play has to mean if it is going to be checkable rather than aspirational. remove a slice and the gap is named by contract and by who is blocked, instead of appearing at the first handoff as a surprise.
 
 ## living means versioned, and versioned means diffable
 
@@ -47,7 +51,7 @@ deprecation is the same move in reverse: a term is retired with a replacement po
 
 ## what breaks without this
 
-**evidence collapses to code.** a deal gets closed with a commit hash because the only evidence scheme in the system knows about commits. nobody notices, because the field is populated and the gate is green.
+**evidence collapses to code.** a price change gets closed with a commit hash because the only evidence scheme in the system knows about commits. nobody notices, because the field is populated and the gate is green.
 
 **verbs go generic.** without per-slice actions, everything becomes `improve`, `handle`, `work on`. a verb that does not name its object cannot be refused, and an unrefusable task is one that completes itself.
 

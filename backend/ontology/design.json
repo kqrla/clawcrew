@@ -1,0 +1,102 @@
+{
+  "slice": "design.studio",
+  "version": 1,
+  "depth": "graph",
+  "kinds": [
+    "design"
+  ],
+  "provides": [
+    "design.asset"
+  ],
+  "requires": [],
+  "classes": [
+    "Asset",
+    "Frame",
+    "Component",
+    "BrandKit",
+    "Prototype"
+  ],
+  "actions": [
+    "frame",
+    "iterate",
+    "publish",
+    "deprecate",
+    "export"
+  ],
+  "axioms": [
+    "a published asset has exactly one owning frame",
+    "a component used in a shipped surface is never deleted, only deprecated"
+  ],
+  "terms": [
+    {
+      "id": "frame",
+      "label": "frame",
+      "aliases": [
+        "artboard",
+        "canvas",
+        "screen"
+      ],
+      "category": "container"
+    },
+    {
+      "id": "component",
+      "label": "component",
+      "aliases": [
+        "widget",
+        "reusable element",
+        "primitive"
+      ],
+      "parent": "frame"
+    },
+    {
+      "id": "brand-kit",
+      "label": "brand kit",
+      "aliases": [
+        "brand",
+        "palette",
+        "style guide"
+      ],
+      "category": "asset"
+    },
+    {
+      "id": "prototype",
+      "label": "prototype",
+      "aliases": [
+        "clickable mockup",
+        "flow"
+      ],
+      "category": "asset"
+    },
+    {
+      "id": "handoff",
+      "label": "handoff",
+      "aliases": [
+        "spec out",
+        "dev ready",
+        "export to code"
+      ],
+      "category": "action"
+    },
+    {
+      "id": "iteration",
+      "label": "iteration",
+      "aliases": [
+        "revise",
+        "tweak",
+        "v2"
+      ],
+      "category": "change"
+    }
+  ],
+  "acceptance": {
+    "design": {
+      "evidence": [
+        "file:",
+        "figma:",
+        "penpot:",
+        "artifact:"
+      ],
+      "gate": "the file is pinned at the version the run produced, its hash matches, and an approval from a seat other than the author is attached"
+    }
+  }
+}

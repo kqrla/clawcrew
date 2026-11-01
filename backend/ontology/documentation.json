@@ -1,0 +1,109 @@
+{
+  "slice": "documentation.site",
+  "version": 1,
+  "depth": "thesaurus",
+  "kinds": [
+    "doc"
+  ],
+  "provides": [
+    "doc.page"
+  ],
+  "requires": [
+    "code.change"
+  ],
+  "classes": [
+    "Page",
+    "Claim",
+    "Source",
+    "Section"
+  ],
+  "actions": [
+    "draft",
+    "publish",
+    "unpublish",
+    "redirect",
+    "cite"
+  ],
+  "axioms": [
+    "a published page has exactly one canonical url",
+    "a claim with no source is an opinion and is not published as fact"
+  ],
+  "terms": [
+    {
+      "id": "tutorial",
+      "label": "tutorial",
+      "aliases": [
+        "getting started",
+        "walkthrough"
+      ],
+      "excludes": [
+        "reference",
+        "explanation"
+      ],
+      "category": "page"
+    },
+    {
+      "id": "how-to",
+      "label": "how-to",
+      "aliases": [
+        "howto",
+        "guide",
+        "recipe"
+      ],
+      "category": "page"
+    },
+    {
+      "id": "reference",
+      "label": "reference",
+      "aliases": [
+        "api docs",
+        "lookup"
+      ],
+      "excludes": [
+        "tutorial"
+      ],
+      "category": "page"
+    },
+    {
+      "id": "explanation",
+      "label": "explanation",
+      "aliases": [
+        "concept page",
+        "background",
+        "why page"
+      ],
+      "excludes": [
+        "tutorial"
+      ],
+      "category": "page"
+    },
+    {
+      "id": "claim",
+      "label": "claim",
+      "aliases": [
+        "assertion",
+        "statement of fact"
+      ],
+      "category": "content"
+    },
+    {
+      "id": "stale",
+      "label": "stale",
+      "aliases": [
+        "out of date",
+        "rot",
+        "drifted"
+      ],
+      "category": "condition"
+    }
+  ],
+  "acceptance": {
+    "doc": {
+      "evidence": [
+        "url:",
+        "artifact:"
+      ],
+      "gate": "the url resolves, the body hash matches the source, and every claim cites a source that resolves"
+    }
+  }
+}

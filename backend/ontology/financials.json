@@ -1,0 +1,103 @@
+{
+  "slice": "financials.rails",
+  "version": 1,
+  "depth": "thesaurus",
+  "kinds": [
+    "financial"
+  ],
+  "provides": [
+    "payment.rail"
+  ],
+  "requires": [
+    "code.change"
+  ],
+  "classes": [
+    "Product",
+    "Price",
+    "Checkout",
+    "Payout",
+    "Refund"
+  ],
+  "actions": [
+    "price",
+    "checkout",
+    "subscribe",
+    "refund",
+    "payout"
+  ],
+  "axioms": [
+    "a price change never mutates an existing price, it creates one",
+    "money leaving the account requires a payout record naming an approved destination"
+  ],
+  "terms": [
+    {
+      "id": "price",
+      "label": "price",
+      "aliases": [
+        "pricing",
+        "plan cost"
+      ],
+      "category": "object"
+    },
+    {
+      "id": "subscription",
+      "label": "subscription",
+      "aliases": [
+        "sub",
+        "recurring charge",
+        "plan"
+      ],
+      "category": "object"
+    },
+    {
+      "id": "refund",
+      "label": "refund",
+      "aliases": [
+        "chargeback",
+        "reverse charge"
+      ],
+      "category": "event"
+    },
+    {
+      "id": "payout",
+      "label": "payout",
+      "aliases": [
+        "withdrawal",
+        "transfer out"
+      ],
+      "excludes": [
+        "refund"
+      ],
+      "category": "event"
+    },
+    {
+      "id": "rail",
+      "label": "payment rail",
+      "aliases": [
+        "processor",
+        "stripe",
+        "checkout flow"
+      ],
+      "category": "infrastructure"
+    },
+    {
+      "id": "revenue-stream",
+      "label": "revenue stream",
+      "aliases": [
+        "line of revenue",
+        "business line"
+      ],
+      "category": "object"
+    }
+  ],
+  "acceptance": {
+    "financial": {
+      "evidence": [
+        "stripe:",
+        "payout:",
+        "invoice:"
+      ],
+      "gate": "the object exists at the provider with the expected amount and currency, and the run that created it is attributed in the provider's metadata"
+    }
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "slice": "security.controls",
+  "version": 1,
+  "depth": "graph",
+  "kinds": [
+    "security"
+  ],
+  "provides": [
+    "security.control"
+  ],
+  "requires": [
+    "code.change",
+    "runtime.deploy"
+  ],
+  "classes": [
+    "Control",
+    "Finding",
+    "Secret",
+    "Scan",
+    "Incident"
+  ],
+  "actions": [
+    "scan",
+    "rotate",
+    "revoke",
+    "patch",
+    "escalate"
+  ],
+  "axioms": [
+    "a secret is never readable by the tier that uses it, only injectable",
+    "a finding above threshold blocks release until it is closed or explicitly risk accepted by a seat with standing"
+  ],
+  "terms": [
+    {
+      "id": "finding",
+      "label": "finding",
+      "aliases": [
+        "vulnerability",
+        "vuln",
+        "issue"
+      ],
+      "category": "record"
+    },
+    {
+      "id": "critical",
+      "label": "critical",
+      "aliases": [
+        "sev1",
+        "blocker",
+        "p0"
+      ],
+      "parent": "finding"
+    },
+    {
+      "id": "secret",
+      "label": "secret",
+      "aliases": [
+        "credential",
+        "api key",
+        "token"
+      ],
+      "category": "asset",
+      "relevance": {
+        "seat.security": 1.0,
+        "seat.code": 0.3
+      }
+    },
+    {
+      "id": "rotation",
+      "label": "rotation",
+      "aliases": [
+        "rotate keys",
+        "rekey"
+      ],
+      "category": "action"
+    },
+    {
+      "id": "risk-accepted",
+      "label": "risk accepted",
+      "aliases": [
+        "waiver",
+        "won't fix",
+        "accepted risk"
+      ],
+      "excludes": [
+        "critical"
+      ],
+      "category": "outcome"
+    },
+    {
+      "id": "incident",
+      "label": "incident",
+      "aliases": [
+        "breach",
+        "compromise",
+        "outage"
+      ],
+      "category": "event"
+    }
+  ],
+  "acceptance": {
+    "security": {
+      "evidence": [
+        "scan:",
+        "audit:"
+      ],
+      "gate": "the scan ran against the deployed revision, its report is attached by hash, and no open finding above threshold remains unaccepted"
+    }
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "slice": "accounting.books",
+  "version": 1,
+  "depth": "taxonomy",
+  "kinds": [
+    "accounting"
+  ],
+  "provides": [
+    "ledger.record"
+  ],
+  "requires": [
+    "payment.rail"
+  ],
+  "classes": [
+    "Entry",
+    "Account",
+    "Budget",
+    "Period"
+  ],
+  "actions": [
+    "post",
+    "reconcile",
+    "budget",
+    "close"
+  ],
+  "axioms": [
+    "an entry has exactly two sides and they sum to zero",
+    "a closed period is never reopened, it is corrected in the next one"
+  ],
+  "terms": [
+    {
+      "id": "entry",
+      "label": "entry",
+      "aliases": [
+        "journal entry",
+        "line item",
+        "posting"
+      ],
+      "category": "record"
+    },
+    {
+      "id": "budget",
+      "label": "budget",
+      "aliases": [
+        "allocation",
+        "spend ceiling",
+        "runway"
+      ],
+      "excludes": [
+        "actual"
+      ],
+      "category": "plan"
+    },
+    {
+      "id": "actual",
+      "label": "actual",
+      "aliases": [
+        "real spend",
+        "incurred"
+      ],
+      "category": "record"
+    },
+    {
+      "id": "reconcile",
+      "label": "reconcile",
+      "aliases": [
+        "match",
+        "tie out",
+        "true up"
+      ],
+      "category": "action"
+    },
+    {
+      "id": "burn",
+      "label": "burn",
+      "aliases": [
+        "burn rate",
+        "spend rate",
+        "monthly spend"
+      ],
+      "category": "metric"
+    },
+    {
+      "id": "period",
+      "label": "period",
+      "aliases": [
+        "month",
+        "quarter",
+        "fiscal period"
+      ],
+      "category": "container"
+    }
+  ],
+  "acceptance": {
+    "accounting": {
+      "evidence": [
+        "ledger:",
+        "sheet:"
+      ],
+      "gate": "the entry posts to a balanced trial balance, and the reconcile report covers every provider transaction in the period with none unmatched"
+    }
+  }
+}

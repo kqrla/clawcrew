@@ -19,7 +19,7 @@ export interface WorkRow {
   tier: string;
   objectiveRef: string;
   /** what kind of work this is. decides which evidence can prove it done. see docs/29 */
-  kind?: 'code' | 'doc' | 'data' | 'deal' | 'design' | 'research' | 'support' | 'ops';
+  kind?: import('./ontology.js').TaskKind;
   /** surfaces this row may write to; contention is a separate check. see docs/26 */
   surfaces: string[];
   /** required for every non-terminal state. a row without one is a stall. */

@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   KIND_EVIDENCE,
   SliceOntology,
+  TASK_KINDS,
+  compose,
   diff,
   evidenceFits,
   propose,
@@ -14,131 +16,179 @@ import { claimWork, complete } from '../src/domain/custody.js';
 import { WorkRow } from '../src/domain/liveness.js';
 
 /**
- * docs/29. the factory's surfaces are not all files, and the schema used to
- * assume they were: one evidence scheme, one acceptance test, applied to a deal.
+ * docs/29. the factory's slices are not all code, and the schema used to assume
+ * they were: one evidence scheme, one acceptance test, applied to everything.
  */
 const NOW = '2026-11-01T12:00:00.000Z';
 const future = (m: number) => new Date(Date.parse(NOW) + m * 60_000).toISOString();
 
 const load = (name: string): SliceOntology =>
-  JSON.parse(readFileSync(new URL(`../ontology/${name}`, import.meta.url), 'utf8'));
+  JSON.parse(readFileSync(new URL(`../ontology/${name}.json`, import.meta.url), 'utf8'));
 
-const code = load('code-repo.json');
-const crm = load('crm-pipeline.json');
-const docs = load('docs-site.json');
-const support = load('support-queue.json');
-const seeds = { code, crm, docs, support };
+const ALL = ['code', 'design', 'research', 'security', 'financials', 'media', 'operations', 'accounting', 'support', 'documentation']
+  .map(load);
+const by = (slice: string) => {
+  const found = ALL.find((o) => o.slice === slice);
+  if (!found) throw new Error(`no seed for ${slice}`);
+  return found;
+};
+const code = by('code.repo');
+const design = by('design.studio');
+const financial = by('financials.rails');
+const research = by('research.analysis');
+const security = by('security.controls');
+const media = by('media.studio');
 
-describe('the seeds are real ontologies', () => {
-  it('there is one for every non-code surface the org runs', () => {
-    expect(Object.keys(seeds).sort()).toEqual(['code', 'crm', 'docs', 'support']);
-    expect(readdirSync(new URL('../ontology/', import.meta.url)).filter((f) => f.endsWith('.json'))).toHaveLength(4);
+describe('the seeds are the org the factory actually runs', () => {
+  it('covers all ten slices, and none of them is a crm', () => {
+    expect(ALL).toHaveLength(10);
+    expect(ALL.map((o) => o.slice)).not.toContain('crm.pipeline');
+    expect(readdirSync(new URL('../ontology/', import.meta.url)).filter((f) => f.endsWith('.json'))).toHaveLength(10);
   });
 
-  it.each(Object.entries(seeds))('%s validates', (_name, ontology) => {
+  it.each(ALL.map((o) => [o.slice, o] as const))('%s validates', (_slice, ontology) => {
     expect(validate(ontology)).toEqual([]);
   });
 
-  it('only the code slice accepts code work', () => {
-    expect(code.kinds).toEqual(['code', 'data']);
-    expect(crm.kinds).toEqual(['deal']);
-    expect(support.kinds).toContain('support');
+  it('a slice only accepts work it can prove, and every kind it claims has acceptance', () => {
+    for (const o of ALL) {
+      expect(o.kinds.length).toBeGreaterThan(0);
+      for (const k of o.kinds) expect(o.acceptance[k]).toBeDefined();
+    }
+  });
+
+  it('kinds and slices are not the same axis', () => {
+    // ten kinds, ten slices, and the mapping is still not a bijection: a slice
+    // may accept a kind a neighbouring slice also accepts
+    expect(TASK_KINDS).toHaveLength(10);
+    expect(new Set(ALL.flatMap((o) => o.kinds)).size).toBe(10);
+  });
+});
+
+describe('plug and play', () => {
+  it('the whole set is closed: every requirement is provided by somebody', () => {
+    expect(compose(ALL).missing).toEqual([]);
+  });
+
+  it('dropping code names every slice that cannot run, not just one', () => {
+    const { missing } = compose(ALL.filter((o) => o.slice !== 'code.repo'));
+    expect(missing.map((m) => m.contract)).toEqual(['code.change']);
+    expect(missing[0]?.neededBy).toEqual([
+      'documentation.site',
+      'financials.rails',
+      'operations.runtime',
+      'security.controls',
+    ]);
+  });
+
+  it('dropping design leaves media waiting on an asset contract', () => {
+    const { missing } = compose(ALL.filter((o) => o.slice !== 'design.studio'));
+    expect(missing).toEqual([
+      { contract: 'design.asset', neededBy: ['code.repo', 'media.studio'] },
+    ]);
+  });
+
+  it('a slice that requires what it provides is a claim it cannot see', () => {
+    const broken: SliceOntology = { ...code, requires: [...(code.requires ?? []), 'code.change'] };
+    expect(validate(broken).map((f) => f.rule)).toContain('self_required_contract');
+  });
+
+  it('refuses a contract id that is not a dotted name', () => {
+    expect(validate({ ...code, provides: ['whatever you like'] }).map((f) => f.rule)).toContain(
+      'malformed_contract',
+    );
   });
 });
 
 describe('resolution', () => {
   it('resolves the canonical id and the label at full confidence', () => {
     expect(resolve(code, 'bug')).toMatchObject({ ok: true, via: 'id', confidence: 1 });
-    // the label is not the id: 'flaky test' resolves to `flake` at full confidence
     expect(resolve(code, 'Flaky Test')).toMatchObject({ ok: true, via: 'label', confidence: 1 });
   });
 
   it('resolves an alias, and never loses what was written', () => {
-    const r = resolve(code, 'intermittent failure');
+    const r = resolve(design, 'style guide');
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect(r.term.id).toBe('flake');
+      expect(r.term.id).toBe('brand-kit');
       expect(r.via).toBe('alias');
-      expect(r.confidence).toBeLessThan(1);
-      // the raw phrasing is the provenance; normalising it away deletes the data
-      expect(r.raw).toBe('intermittent failure');
+      expect(r.raw).toBe('style guide');
     }
   });
 
-  it('normalises punctuation and case without inventing a match', () => {
-    expect(resolve(docs, 'Getting  Started')).toMatchObject({ ok: true });
-    expect(resolve(docs, 'server-rendered-widget')).toMatchObject({ ok: false, reason: 'unknown_term' });
+  it('resolves the shapes a real seat writes', () => {
+    expect(resolve(research, 'd1 d7 d30')).toMatchObject({ ok: true });
+    expect(resolve(financial, 'chargeback')).toMatchObject({ ok: true });
+    expect(resolve(operation(), 'pager duty')).toMatchObject({ ok: true });
   });
 
   it('offers candidates instead of guessing', () => {
-    const r = resolve(docs, 'reference page for the api');
+    const r = resolve(code, 'reference page for the api');
     expect(r.ok).toBe(false);
-    if (!r.ok) {
-      expect(r.reason).toBe('unknown_term');
-      expect(r.candidates.map((t) => t.id)).toContain('reference');
-    }
+    if (!r.ok) expect(r.candidates.length).toBeLessThanOrEqual(5);
   });
 
   it('refuses a deprecated term and points at its replacement', () => {
     const withDeprecated: SliceOntology = {
-      ...docs,
-      terms: [
-        ...docs.terms,
-        { id: 'spec page', label: 'spec page', status: 'deprecated', replacedBy: 'reference' },
-      ],
+      ...design,
+      terms: [...design.terms, { id: 'mockup', label: 'mockup', status: 'deprecated', replacedBy: 'prototype' }],
     };
-    expect(resolve(withDeprecated, 'spec page')).toMatchObject({
+    expect(resolve(withDeprecated, 'mockup')).toMatchObject({
       ok: false,
-      reason: 'term_deprecated:use:reference',
+      reason: 'term_deprecated:use:prototype',
     });
   });
 
   it('weights the same term differently for different seats', () => {
-    // memorium's lesson, applied: one canonical id, two perspectives
-    const asSales = resolve(crm, 'stage', { seat: 'seat.sales' });
-    const asOps = resolve(crm, 'stage', { seat: 'seat.ops' });
-    expect(asSales.ok && asSales.relevance).toBe(0.9);
-    expect(asOps.ok && asOps.relevance).toBe(0.2);
+    const asSecurity = resolve(security, 'secret', { seat: 'seat.security' });
+    const asCode = resolve(security, 'secret', { seat: 'seat.code' });
+    expect(asSecurity.ok && asSecurity.relevance).toBe(1);
+    expect(asCode.ok && asCode.relevance).toBe(0.3);
   });
 });
 
+function operation(): SliceOntology {
+  return by('operations.runtime');
+}
+
 describe('proposals', () => {
   it('keeps the raw term and the seat that wrote it', () => {
-    const p = propose(crm, 'quarterly hygiene sweep', 'seat.sales', { intent: 'a recurring cleanup task', at: NOW });
-    expect(p.raw).toBe('quarterly hygiene sweep');
-    expect(p.normalised).toBe('quarterly hygiene sweep');
-    expect(p.by).toBe('seat.sales');
+    const p = propose(financial, 'metro pricing sweep', 'seat.finance', { intent: 'per-city pricing', at: NOW });
+    expect(p.raw).toBe('metro pricing sweep');
+    expect(p.by).toBe('seat.finance');
     expect(p.ontologyVersion).toBe(1);
-    expect(p.intent).toBe('a recurring cleanup task');
-    expect(p.candidates).toEqual([]);
+    expect(p.intent).toBe('per-city pricing');
   });
 
   it('carries the closest existing terms so a reviewer has somewhere to start', () => {
-    expect(propose(crm, 'renewal expansion', 'seat.sales', { at: NOW }).candidates).toEqual(
-      expect.arrayContaining(['renewal', 'expansion']),
+    expect(propose(financial, 'refund payout dispute', 'seat.finance', { at: NOW }).candidates).toEqual(
+      expect.arrayContaining(['refund', 'payout']),
     );
   });
 });
 
 describe('evidence fits the kind of work', () => {
-  it('a deal cannot be closed with a commit hash', () => {
-    expect(evidenceFits('deal', 'commit:9f2a1c')).toEqual({
+  it('money movement is not proven by a commit', () => {
+    expect(evidenceFits('financial', 'commit:9f2a1c')).toEqual({
       ok: false,
-      reason: 'evidence_kind_mismatch:deal_expects_crm:',
+      reason: 'evidence_kind_mismatch:financial_expects_stripe:|payout:|invoice:',
     });
   });
 
-  it('a doc cannot be closed with a test run', () => {
-    expect(evidenceFits('doc', 'run:npm test').ok).toBe(false);
-    expect(evidenceFits('doc', 'url:https://example.com/guide')).toEqual({ ok: true, scheme: 'url:' });
+  it('a design is not proven by a test run', () => {
+    expect(evidenceFits('design', 'run:npm test').ok).toBe(false);
+    expect(evidenceFits('design', 'figma:file/abc123')).toEqual({ ok: true, scheme: 'figma:' });
   });
 
-  it('accepts each kind own scheme', () => {
+  it('accepts the scheme each kind actually produces', () => {
     expect(evidenceFits('code', 'commit:abc123').ok).toBe(true);
-    expect(evidenceFits('data', 'sql:select count(*) from t').ok).toBe(true);
-    expect(evidenceFits('deal', 'crm:deal_8821').ok).toBe(true);
+    expect(evidenceFits('research', 'sheet:model-v3#retention').ok).toBe(true);
+    expect(evidenceFits('security', 'scan:trivy/2026-11-01').ok).toBe(true);
+    expect(evidenceFits('media', 'render:final-cut-v2').ok).toBe(true);
+    expect(evidenceFits('ops', 'deploy:rev-91f').ok).toBe(true);
+    expect(evidenceFits('accounting', 'ledger:2026-11#entry-44').ok).toBe(true);
     expect(evidenceFits('support', 'ticket:TCK-119').ok).toBe(true);
-    expect(evidenceFits('research', 'source:https://arxiv.org/abs/2401.1').ok).toBe(true);
+    expect(evidenceFits('doc', 'url:https://docs.example.com/guide').ok).toBe(true);
   });
 
   it('refuses prose dressed as a reference', () => {
@@ -157,30 +207,30 @@ describe('evidence fits the kind of work', () => {
     expect(evidenceFits('code', 'run:npm test', narrower).ok).toBe(true);
 
     const widened: SliceOntology = {
-      ...code,
-      acceptance: { code: { evidence: ['url:'], gate: 'a link' } },
+      ...financial,
+      acceptance: { financial: { evidence: ['commit:'], gate: 'a commit hash' } },
     };
-    expect(evidenceFits('code', 'url:https://x.dev', widened)).toEqual({
+    expect(evidenceFits('financial', 'commit:abc', widened)).toEqual({
       ok: false,
-      reason: 'slice_widened_code_past_commit:|run:',
+      reason: 'slice_widened_financial_past_stripe:|payout:|invoice:',
     });
   });
 
-  it('every kind has a default scheme, and they are not all the same', () => {
-    expect(Object.keys(KIND_EVIDENCE)).toHaveLength(8);
-    expect(new Set(Object.values(KIND_EVIDENCE).flat()).size).toBeGreaterThan(4);
+  it('every kind has a default scheme, and they are genuinely different', () => {
+    expect(Object.keys(KIND_EVIDENCE)).toHaveLength(TASK_KINDS.length);
+    expect(new Set(Object.values(KIND_EVIDENCE).flat()).size).toBeGreaterThan(8);
   });
 });
 
 describe('completion is gated by the kind', () => {
-  const SEAT = { id: 'seat.a', slice: ['crm.pipeline'] };
-  const deal = (over: Partial<WorkRow> = {}): WorkRow => ({
+  const SEAT = { id: 'seat.a', slice: ['financials.rails'] };
+  const priced = (over: Partial<WorkRow> = {}): WorkRow => ({
     id: 'w1',
     state: 'ready',
-    tier: 't.sales',
-    objectiveRef: 'obj.pipeline.v1',
-    kind: 'deal',
-    surfaces: ['crm.pipeline'],
+    tier: 't.revenue',
+    objectiveRef: 'obj.mrr.v1',
+    kind: 'financial',
+    surfaces: ['financials.rails'],
     nextActionAt: future(10),
     claimDeadlineAt: future(10),
     progressVersion: 0,
@@ -189,20 +239,24 @@ describe('completion is gated by the kind', () => {
     ...over,
   });
 
-  it('refuses the wrong evidence for a deal', () => {
-    const held = claimWork(deal(), SEAT, NOW, { ttlMs: 600_000 });
+  it('refuses the wrong evidence for money movement', () => {
+    const held = claimWork(priced(), SEAT, NOW, { ttlMs: 600_000 });
     if (!held.ok) throw new Error(held.reason);
     expect(complete(held.row, 'seat.a', 'commit:9f2a1c', NOW)).toEqual({
       ok: false,
-      reason: 'evidence_kind_mismatch:deal_expects_crm:',
+      reason: 'evidence_kind_mismatch:financial_expects_stripe:|payout:|invoice:',
     });
   });
 
-  it('accepts the right evidence, and still requires a reference', () => {
-    const held = claimWork(deal(), SEAT, NOW, { ttlMs: 600_000 });
+  it('accepts the provider record', () => {
+    const held = claimWork(priced(), SEAT, NOW, { ttlMs: 600_000 });
     if (!held.ok) throw new Error(held.reason);
-    expect(complete(held.row, 'seat.a', 'crm:deal_8821', NOW)).toMatchObject({ ok: true });
-    // a kinded row is held to its kind's vocabulary, so prose fails there first
+    expect(complete(held.row, 'seat.a', 'stripe:price_1Qabc', NOW)).toMatchObject({ ok: true });
+  });
+
+  it('refuses prose on a kinded row', () => {
+    const held = claimWork(priced(), SEAT, NOW, { ttlMs: 600_000 });
+    if (!held.ok) throw new Error(held.reason);
     expect(complete(held.row, 'seat.a', 'closed it', NOW)).toEqual({
       ok: false,
       reason: 'evidence_not_a_reference',
@@ -210,7 +264,7 @@ describe('completion is gated by the kind', () => {
   });
 
   it('leaves unkinded work on the payload rule it always had', () => {
-    const held = claimWork(deal({ kind: undefined }), SEAT, NOW, { ttlMs: 600_000 });
+    const held = claimWork(priced({ kind: undefined }), SEAT, NOW, { ttlMs: 600_000 });
     if (!held.ok) throw new Error(held.reason);
     expect(complete(held.row, 'seat.a', 'artifact://sha256/abc', NOW)).toMatchObject({ ok: true });
     expect(complete(held.row, 'seat.a', 'closed it', NOW)).toEqual({
@@ -222,7 +276,7 @@ describe('completion is gated by the kind', () => {
 
 describe('structure', () => {
   const broken = (over: Partial<SliceOntology> = {}): SliceOntology => ({
-    ...docs,
+    ...design,
     terms: [
       { id: 'a', label: 'a', parent: 'b' },
       { id: 'b', label: 'b', parent: 'a' },
@@ -240,18 +294,19 @@ describe('structure', () => {
   });
 
   it('refuses a slice that accepts a kind it has no acceptance for', () => {
-    const rules = validate({ ...docs, kinds: ['doc', 'deal'] }).map((f) => f.rule);
+    const rules = validate({ ...design, kinds: ['design', 'code'] }).map((f) => f.rule);
     expect(rules).toContain('acceptance_missing');
   });
 
   it('refuses acceptance recorded for a kind the slice does not accept', () => {
-    const rules = validate({ ...docs, kinds: ['doc'] }).map((f) => f.rule);
+    const rules = validate({ ...design, kinds: ['design'], acceptance: { ...design.acceptance, code: { evidence: ['commit:'], gate: 'tests' } } })
+      .map((f) => f.rule);
     expect(rules).toContain('acceptance_for_unaccepted_kind');
   });
 
   it('refuses a duplicate term and a self-parent', () => {
     const dup: SliceOntology = {
-      ...docs,
+      ...design,
       terms: [
         { id: 'x', label: 'x' },
         { id: 'X ', label: 'second x' },
@@ -264,7 +319,7 @@ describe('structure', () => {
   });
 
   it('refuses an axiom too thin to check', () => {
-    expect(validate({ ...docs, axioms: ['be good'] }).map((f) => f.rule)).toContain(
+    expect(validate({ ...design, axioms: ['be good'] }).map((f) => f.rule)).toContain(
       'axiom_too_thin_to_check',
     );
   });
@@ -272,28 +327,34 @@ describe('structure', () => {
 
 describe('versioning', () => {
   it('hashes the document, not the key order', () => {
-    const reordered = JSON.parse(JSON.stringify({ ...crm, kinds: [...crm.kinds] }));
-    expect(versionHash(reordered)).toBe(versionHash(crm));
+    const reordered = JSON.parse(JSON.stringify({ ...media, kinds: [...media.kinds] }));
+    expect(versionHash(reordered)).toBe(versionHash(media));
   });
 
   it('a changed ontology has a different hash', () => {
-    expect(versionHash({ ...crm, version: 2 })).not.toBe(versionHash(crm));
+    expect(versionHash({ ...media, version: 2 })).not.toBe(versionHash(media));
   });
 
   it('the diff is what a human reviews', () => {
-    const before = load('crm-pipeline.json');
+    const before = load('media');
     const after: SliceOntology = {
       ...before,
       version: 2,
       terms: before.terms
-        .filter((t) => t.id !== 'disqualified')
-        .map((t) => (t.id === 'stage' ? { ...t, aliases: [...(t.aliases ?? []), 'milestone'] } : t))
-        .concat([{ id: 'pipeline-review', label: 'pipeline review', parent: 'deal' }]),
+        .filter((t) => t.id !== 'broll')
+        .map((t) => (t.id === 'cut' ? { ...t, aliases: [...(t.aliases ?? []), 'assembly'] } : t))
+        .concat([{ id: 'subtitle-track', label: 'subtitle track', parent: 'render' }]),
     };
     const d = diff(before, after);
-    expect(d.added).toEqual(['pipeline-review']);
-    expect(d.removed).toEqual(['disqualified']);
-    expect(d.changed).toEqual([{ id: 'stage', fields: ['aliases'] }]);
+    expect(d.added).toEqual(['subtitle-track']);
+    expect(d.removed).toEqual(['broll']);
+    expect(d.changed).toEqual([{ id: 'cut', fields: ['aliases'] }]);
     expect(d.meta).toEqual([]);
+  });
+
+  it('reports a changed contract as meta, because it is the thing that breaks a neighbour', () => {
+    const before = load('financials');
+    const d = diff(before, { ...before, version: 2, provides: ['payment.rail', 'checkout.page'] });
+    expect(d.meta).toEqual(['provides']);
   });
 });

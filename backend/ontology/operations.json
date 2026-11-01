@@ -1,0 +1,107 @@
+{
+  "slice": "operations.runtime",
+  "version": 1,
+  "depth": "graph",
+  "kinds": [
+    "ops"
+  ],
+  "provides": [
+    "runtime.deploy",
+    "oncall.roster"
+  ],
+  "requires": [
+    "code.change"
+  ],
+  "classes": [
+    "Deploy",
+    "Check",
+    "Runbook",
+    "Incident",
+    "Shift"
+  ],
+  "actions": [
+    "deploy",
+    "check",
+    "page",
+    "rollback",
+    "handover"
+  ],
+  "axioms": [
+    "a deploy names the commit it ships",
+    "a shift is held under a lease and a seat without a live lease is not on call"
+  ],
+  "terms": [
+    {
+      "id": "deploy",
+      "label": "deploy",
+      "aliases": [
+        "ship",
+        "release",
+        "push to prod"
+      ],
+      "category": "action"
+    },
+    {
+      "id": "rollback",
+      "label": "rollback",
+      "aliases": [
+        "revert deploy",
+        "undo release"
+      ],
+      "excludes": [
+        "deploy"
+      ],
+      "category": "action"
+    },
+    {
+      "id": "runbook",
+      "label": "runbook",
+      "aliases": [
+        "playbook",
+        "procedure",
+        "sop"
+      ],
+      "category": "artifact"
+    },
+    {
+      "id": "check",
+      "label": "check",
+      "aliases": [
+        "health check",
+        "probe",
+        "synthetic"
+      ],
+      "category": "artifact"
+    },
+    {
+      "id": "on-call",
+      "label": "on call",
+      "aliases": [
+        "shift",
+        "pager duty",
+        "coverage"
+      ],
+      "category": "roster"
+    },
+    {
+      "id": "incident",
+      "label": "incident",
+      "aliases": [
+        "outage",
+        "sev1",
+        "degraded"
+      ],
+      "category": "event"
+    }
+  ],
+  "acceptance": {
+    "ops": {
+      "evidence": [
+        "run:",
+        "deploy:",
+        "ticket:"
+      ],
+      "gate": "the check ran across the whole window it claims to cover, against the deployed revision, and its output is attached by hash"
+    }
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "slice": "code.repo",
+  "version": 1,
+  "depth": "graph",
+  "kinds": [
+    "code"
+  ],
+  "provides": [
+    "code.change"
+  ],
+  "requires": [
+    "design.asset"
+  ],
+  "classes": [
+    "Commit",
+    "Branch",
+    "TestRun",
+    "Migration"
+  ],
+  "actions": [
+    "commit",
+    "branch",
+    "revert",
+    "migrate"
+  ],
+  "axioms": [
+    "a commit has exactly one parent branch",
+    "a migration that has run on a shared database is never reverted in place"
+  ],
+  "terms": [
+    {
+      "id": "bug",
+      "label": "bug",
+      "aliases": [
+        "defect",
+        "issue",
+        "breakage"
+      ],
+      "category": "change"
+    },
+    {
+      "id": "regression",
+      "label": "regression",
+      "aliases": [
+        "broke something that worked"
+      ],
+      "parent": "bug"
+    },
+    {
+      "id": "flake",
+      "label": "flaky test",
+      "aliases": [
+        "flake",
+        "intermittent failure"
+      ],
+      "parent": "bug",
+      "excludes": [
+        "regression"
+      ]
+    },
+    {
+      "id": "feature",
+      "label": "feature",
+      "aliases": [
+        "feat",
+        "capability"
+      ],
+      "category": "change"
+    },
+    {
+      "id": "chore",
+      "label": "chore",
+      "aliases": [
+        "maintenance",
+        "cleanup"
+      ],
+      "category": "change"
+    },
+    {
+      "id": "migration",
+      "label": "migration",
+      "aliases": [
+        "schema change",
+        "ddl"
+      ],
+      "parent": "chore"
+    }
+  ],
+  "acceptance": {
+    "code": {
+      "evidence": [
+        "commit:",
+        "run:"
+      ],
+      "gate": "the declared test command exits 0 on the tree that commit points at, and the commit is reachable from the branch the tier owns"
+    }
+  }
+}

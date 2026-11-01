@@ -1,0 +1,105 @@
+{
+  "slice": "research.analysis",
+  "version": 1,
+  "depth": "graph",
+  "kinds": [
+    "research"
+  ],
+  "provides": [
+    "research.signal"
+  ],
+  "requires": [],
+  "classes": [
+    "Dataset",
+    "Query",
+    "Sheet",
+    "Chart",
+    "Claim"
+  ],
+  "actions": [
+    "query",
+    "model",
+    "chart",
+    "cite",
+    "retract"
+  ],
+  "axioms": [
+    "a chart cites exactly one query",
+    "a claim whose sample is smaller than the stated minimum is reported as a signal, never as a result"
+  ],
+  "terms": [
+    {
+      "id": "cohort",
+      "label": "cohort",
+      "aliases": [
+        "segment",
+        "group",
+        "slice of users"
+      ],
+      "category": "population"
+    },
+    {
+      "id": "funnel",
+      "label": "funnel",
+      "aliases": [
+        "conversion path",
+        "steps"
+      ],
+      "category": "model"
+    },
+    {
+      "id": "retention",
+      "label": "retention",
+      "aliases": [
+        "churn curve",
+        "stickiness",
+        "d1 d7 d30"
+      ],
+      "category": "metric"
+    },
+    {
+      "id": "unit-economics",
+      "label": "unit economics",
+      "aliases": [
+        "ltv",
+        "cac",
+        "payback"
+      ],
+      "excludes": [
+        "retention"
+      ],
+      "category": "metric"
+    },
+    {
+      "id": "sheet",
+      "label": "spreadsheet",
+      "aliases": [
+        "model",
+        "workbook",
+        "xlsx"
+      ],
+      "category": "artifact"
+    },
+    {
+      "id": "signal",
+      "label": "signal",
+      "aliases": [
+        "early read",
+        "directional",
+        "not significant"
+      ],
+      "category": "confidence"
+    }
+  ],
+  "acceptance": {
+    "research": {
+      "evidence": [
+        "sheet:",
+        "sql:",
+        "source:",
+        "chart:"
+      ],
+      "gate": "each claim cites a query or sheet whose numbers reproduce, the sample size is stated, and the confidence is named rather than implied"
+    }
+  }
+}

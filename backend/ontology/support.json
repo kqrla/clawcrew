@@ -1,0 +1,106 @@
+{
+  "slice": "support.inbox",
+  "version": 1,
+  "depth": "graph",
+  "kinds": [
+    "support"
+  ],
+  "provides": [
+    "support.inbox"
+  ],
+  "requires": [
+    "doc.page",
+    "runtime.deploy"
+  ],
+  "classes": [
+    "Ticket",
+    "Customer",
+    "Reply",
+    "Macro"
+  ],
+  "actions": [
+    "reply",
+    "escalate",
+    "merge",
+    "close",
+    "reopen"
+  ],
+  "axioms": [
+    "a ticket is closed by someone other than the person who opened it",
+    "an escalation names exactly one owning tier"
+  ],
+  "terms": [
+    {
+      "id": "ticket",
+      "label": "ticket",
+      "aliases": [
+        "case",
+        "conversation",
+        "thread"
+      ],
+      "category": "record",
+      "relevance": {
+        "seat.support": 1.0,
+        "seat.ops": 0.4
+      }
+    },
+    {
+      "id": "bug-report",
+      "label": "bug report",
+      "aliases": [
+        "defect report",
+        "it is broken",
+        "not working"
+      ],
+      "parent": "ticket"
+    },
+    {
+      "id": "billing-question",
+      "label": "billing question",
+      "aliases": [
+        "invoice",
+        "charge",
+        "refund",
+        "card declined"
+      ],
+      "parent": "ticket"
+    },
+    {
+      "id": "access-problem",
+      "label": "access problem",
+      "aliases": [
+        "cannot log in",
+        "locked out",
+        "permission denied"
+      ],
+      "parent": "ticket"
+    },
+    {
+      "id": "escalation",
+      "label": "escalation",
+      "aliases": [
+        "hand off to engineering",
+        "raise"
+      ],
+      "category": "action"
+    },
+    {
+      "id": "resolution",
+      "label": "resolution",
+      "aliases": [
+        "resolved",
+        "fixed",
+        "answered"
+      ],
+      "category": "outcome"
+    }
+  ],
+  "acceptance": {
+    "support": {
+      "evidence": [
+        "ticket:"
+      ],
+      "gate": "the ticket is in a resolved state and the closing event is attributed to a seat other than the one that opened the reply"
+    }
+  }
+}

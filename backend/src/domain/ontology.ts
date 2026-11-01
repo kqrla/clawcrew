@@ -31,13 +31,15 @@ export type TermStatus = 'canonical' | 'candidate' | 'deprecated';
  */
 export const TASK_KINDS = [
   'code',
-  'doc',
-  'data',
-  'deal',
   'design',
   'research',
-  'support',
+  'security',
+  'financial',
+  'media',
   'ops',
+  'accounting',
+  'support',
+  'doc',
 ] as const;
 export type TaskKind = (typeof TASK_KINDS)[number];
 
@@ -84,6 +86,14 @@ export interface SliceOntology {
   terms: Term[];
   /** keyed by kind: a slice can accept code and deals on quite different terms */
   acceptance: Partial<Record<TaskKind, Acceptance>>;
+  /**
+   * the contracts this slice fulfils, and the ones it cannot work without. this
+   * is what makes a slice plug and play: a business is a set of slices whose
+   * requires are all provided, and a missing edge is a named gap rather than a
+   * surprise at the first handoff.
+   */
+  provides?: string[];
+  requires?: string[];
   /** who published this version, and when. a document without an author is a rumour */
   author?: string;
   publishedAt?: string;
@@ -96,13 +106,15 @@ export interface SliceOntology {
  */
 export const KIND_EVIDENCE: Record<TaskKind, string[]> = {
   code: ['commit:', 'run:'],
-  doc: ['url:', 'artifact:'],
-  data: ['sql:', 'artifact:'],
-  deal: ['crm:'],
-  design: ['artifact:', 'asset:'],
-  research: ['source:', 'url:'],
+  design: ['file:', 'figma:', 'penpot:', 'artifact:'],
+  research: ['sheet:', 'sql:', 'source:', 'chart:'],
+  security: ['scan:', 'audit:'],
+  financial: ['stripe:', 'payout:', 'invoice:'],
+  media: ['asset:', 'render:'],
+  ops: ['run:', 'deploy:', 'ticket:'],
+  accounting: ['ledger:', 'sheet:'],
   support: ['ticket:'],
-  ops: ['run:', 'sql:'],
+  doc: ['url:', 'artifact:'],
 };
 
 const SCHEME = /^([a-z]+):\S.*$/;
@@ -309,6 +321,22 @@ export function validate(ontology: SliceOntology): OntologyFault[] {
     }
   }
 
+  const prov = new Set((ontology.provides ?? []).map((c) => c.trim()));
+  if (prov.has('')) faults.push({ rule: 'empty_contract', detail: 'provides' });
+  if (prov.size !== (ontology.provides ?? []).length) {
+    faults.push({ rule: 'duplicate_contract', detail: 'provides' });
+  }
+  const requires = (ontology.requires ?? []).map((c) => c.trim());
+  const CONTRACT = /^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)+$/;
+  const malformed = [...prov, ...requires].filter((c) => c !== '' && !CONTRACT.test(c));
+  if (malformed.length > 0) {
+    faults.push({ rule: 'malformed_contract', detail: malformed.join(',') });
+  }
+  // a slice that requires what it provides is claiming a cycle it cannot see
+  for (const needed of requires) {
+    if (prov.has(needed)) faults.push({ rule: 'self_required_contract', detail: needed });
+  }
+
   for (const [i, axiom] of (ontology.axioms ?? []).entries()) {
     if (axiom.trim().length < 12) {
       faults.push({ rule: 'axiom_too_thin_to_check', detail: `#${i}: ${axiom}` });
@@ -369,9 +397,46 @@ export function diff(before: SliceOntology, after: SliceOntology): OntologyDiff 
     if (fields.length > 0) changed.push({ id: term.id, fields });
   }
 
-  const meta = (['depth', 'kinds', 'classes', 'actions', 'axioms', 'acceptance'] as const).filter(
+  const meta = (['depth', 'kinds', 'classes', 'actions', 'axioms', 'provides', 'requires', 'acceptance'] as const).filter(
     (f) => canonical(before[f] ?? null) !== canonical(after[f] ?? null),
   );
 
   return { added, removed, changed, meta };
+}
+
+export interface Composition {
+  /** the slices that are present, in the order given */
+  slices: string[];
+  /** every contract the set can rely on */
+  provided: string[];
+  /** required contracts nobody in the set provides, with who is waiting on them */
+  missing: { contract: string; neededBy: string[] }[];
+}
+
+/**
+ * plug and play, checked. a business is a set of slices; the set is whole when
+ * every `requires` is met by some `provides`. this does not pretend a missing
+ * slice is fatal, it reports exactly what cannot run and who is blocked, which
+ * is the difference between a gap and a mystery.
+ */
+export function compose(ontologies: SliceOntology[]): Composition {
+  const provided = new Set<string>();
+  for (const o of ontologies) for (const c of o.provides ?? []) provided.add(c.trim());
+
+  const wanted = new Map<string, string[]>();
+  for (const o of ontologies) {
+    for (const c of o.requires ?? []) {
+      const contract = c.trim();
+      if (provided.has(contract)) continue;
+      wanted.set(contract, [...(wanted.get(contract) ?? []), o.slice]);
+    }
+  }
+
+  return {
+    slices: ontologies.map((o) => o.slice),
+    provided: [...provided].sort(),
+    missing: [...wanted.entries()]
+      .map(([contract, neededBy]) => ({ contract, neededBy: [...neededBy].sort() }))
+      .sort((a, b) => a.contract.localeCompare(b.contract)),
+  };
 }

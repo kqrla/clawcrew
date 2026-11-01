@@ -7,17 +7,17 @@ the concept is [13-ontology](../concept/13-ontology/readme.md). this is the part
 before this document, the schema had exactly one evidence scheme, one acceptance test and one set of verbs, and they were all about code.
 
 ```
-task.surfaces = ['crm.pipeline']     -- a real surface the factory works on
+task.surfaces = ['financials.rails']      -- a real surface the factory works on
 complete(row, holder, 'artifact://sha256/abc')  -- accepted
 ```
 
-a deal was closed with an artifact hash. nothing failed, because the field was populated and the gate was green. that is the worst failure shape available: not a crash, a confirmation.
+a price change was closed with an artifact hash. nothing failed, because the field was populated and the gate was green. that is the worst failure shape available: not a crash, a confirmation.
 
 the cause is not laziness, it is that the model had nowhere to put the difference. `surfaces: string[]` says *where*, never *what kind of thing lives there*.
 
 ## 2 · three sources, one piece each
 
-**salesforce, on shape.** an ontology is at the strong end of a spectrum: pick list, taxonomy, thesaurus, graph of classes, individuals, relations and axioms. the property worth taking is extensibility: *a taxonomy has to be reorganised to grow; a graph absorbs a new concept as a node*. a month-long org adds vocabulary constantly, so the default depth is `graph`, and shallower depths are allowed where the vocabulary is genuinely stable (`crm-pipeline` is a `thesaurus`).
+**salesforce, on shape.** an ontology is at the strong end of a spectrum: pick list, taxonomy, thesaurus, graph of classes, individuals, relations and axioms. the property worth taking is extensibility: *a taxonomy has to be reorganised to grow; a graph absorbs a new concept as a node*. a month-long org adds vocabulary constantly, so the default depth is `graph`, and shallower depths are allowed where the vocabulary is genuinely stable (`financials.rails` and `accounting.books` are shallower, because their vocabulary is genuinely stable).
 
 **memorium, on living.** its AO3-derived tag system gives canonical terms, aliases, a parent for branches and subbranches, exclusions, weighted associations, and relevance that varies by perspective. two rules transfer:
 
@@ -39,22 +39,28 @@ SliceOntology {
 }
 ```
 
-`classes` and `actions` are the slice's nouns and verbs. `axioms` are constraints in words, deliberately not a rule language. `acceptance` is keyed by kind, so one slice can accept `code` and `data` on quite different terms, and a slice that only runs deals says so.
+`classes` and `actions` are the slice's nouns and verbs. `axioms` are constraints in words, deliberately not a rule language. `acceptance` is keyed by kind, so a slice can accept `ops` and `support` on quite different terms and a slice that only prices things says so.
 
-## 4 · kinds, and what proves each done
+## 4 · the ten slices, and what proves each done
 
-| kind | default evidence | gate |
-| --- | --- | --- |
-| `code` | `commit:`, `run:` | the test command exits 0 on the tree the commit points at |
-| `doc` | `url:`, `artifact:` | the url resolves and the body hash matches the source |
-| `data` | `sql:`, `artifact:` | the number moved, computed outside the seat |
-| `deal` | `crm:` | the record is at the target stage, the transition attributed to this run |
-| `design` | `artifact:`, `asset:` | the hash is pinned and an approval is attached |
-| `research` | `source:`, `url:` | every claim maps to a source that says what the claim says |
-| `support` | `ticket:` | closed by someone other than the author |
-| `ops` | `run:`, `sql:` | the check ran across the whole window it claims |
+the factory runs this org, not a sales org: design, code, research, security,
+financials, media, operations, accounting, support, documentation. each one has a
+different notion of done, which is the whole reason the kind exists.
 
-a slice may **narrow** its scheme (`code` → `run:` only) and may never **widen** it outside the kind's defaults. widening is exactly how a commit hash comes to certify a deal.
+| kind | slice | default evidence | gate |
+| --- | --- | --- | --- |
+| `code` | `code.repo` | `commit:`, `run:` | the test command exits 0 on the tree the commit points at |
+| `design` | `design.studio` | `file:`, `figma:`, `penpot:`, `artifact:` | the file is pinned at the version produced, its hash matches, and an approval from another seat is attached |
+| `research` | `research.analysis` | `sheet:`, `sql:`, `source:`, `chart:` | each claim cites a query or sheet whose numbers reproduce, with the sample size stated |
+| `security` | `security.controls` | `scan:`, `audit:` | the scan ran against the deployed revision and no open finding above threshold is unaccepted |
+| `financial` | `financials.rails` | `stripe:`, `payout:`, `invoice:` | the object exists at the provider with the expected amount and currency, attributed in its metadata |
+| `media` | `media.studio` | `asset:`, `render:` | the asset resolves, the hash matches the approved render, spec matches, consent on record |
+| `ops` | `operations.runtime` | `run:`, `deploy:`, `ticket:` | the check ran across the whole window it claims, against the deployed revision |
+| `accounting` | `accounting.books` | `ledger:`, `sheet:` | the entry posts to a balanced trial balance and every provider transaction in the period reconciles |
+| `support` | `support.inbox` | `ticket:` | closed by someone other than the author |
+| `doc` | `documentation.site` | `url:`, `artifact:` | the url resolves, the body hash matches, every claim cites a source that resolves |
+
+a slice may **narrow** its scheme (`code` → `run:` only) and may never **widen** it outside the kind's defaults. widening is exactly how a commit hash comes to certify a move of money.
 
 enforced at the only place that matters: `complete` refuses `evidence_kind_mismatch:<kind>_expects_<schemes>` when the reference does not fit the row's kind. unkinded rows keep the old payload rule, so nothing that predates this document changed behaviour.
 
@@ -89,16 +95,24 @@ merging a proposal means publishing a new ontology version. that is the only pat
 
 ## 8 · what ships
 
-four seed ontologies in `backend/ontology/`, published live, chosen to prove the point that they are not all code:
+ten seed ontologies in `backend/ontology/`, published live:
 
-| seed | slice | kinds | what it demonstrates |
-| --- | --- | --- | --- |
-| `code-repo` | `repo.orchart` | code, data | the only slice that accepts code; a `flake` that excludes `regression` |
-| `crm-pipeline` | `crm.pipeline` | deal | `renewal` excludes `expansion`; `stage` weighted 0.9 for sales, 0.2 for ops |
-| `docs-site` | `docs.public` | doc, research | the four diataxis pages as terms, with tutorial excluding reference |
-| `support-queue` | `support.queue` | support, ops | an axiom that a ticket is closed by someone other than its author |
+| seed | slice | kind | provides | requires |
+| --- | --- | --- | --- | --- |
+| `design` | `design.studio` | design | `design.asset` | — |
+| `code` | `code.repo` | code | `code.change` | `design.asset` |
+| `research` | `research.analysis` | research | `research.signal` | — |
+| `security` | `security.controls` | security | `security.control` | `code.change`, `runtime.deploy` |
+| `financials` | `financials.rails` | financial | `payment.rail` | `code.change` |
+| `media` | `media.studio` | media | `media.asset` | `design.asset` |
+| `operations` | `operations.runtime` | ops | `runtime.deploy`, `oncall.roster` | `code.change` |
+| `accounting` | `accounting.books` | accounting | `ledger.record` | `payment.rail` |
+| `support` | `support.inbox` | support | `support.inbox` | `doc.page`, `runtime.deploy` |
+| `documentation` | `documentation.site` | doc | `doc.page` | `code.change` |
 
-plus two views for the questions a human actually asks:
+the `provides` / `requires` pair is what makes a slice **plug and play**. a business is a set of slices, and the set is whole when every `requires` is met by some `provides` inside it. `compose()` reports the gaps by contract and by who is waiting, so removing a slice says *what cannot run* instead of surfacing a missing dependency at the first handoff. the ten together are closed; dropping `code` blocks four slices on `code.change`, and dropping `design` blocks two on `design.asset`.
+
+live, the same check is a view rather than an assertion: `unmet_contracts` is the query behind it, and it returns nothing for the current set.
 
 - `slice_without_ontology`: surfaces work is being addressed to with no vocabulary at all.
 - `unprovable_work`: open tasks whose kind has no acceptance recorded in their slice's current ontology. these cannot be proven done by anyone.
@@ -111,4 +125,6 @@ plus two views for the questions a human actually asks:
 
 **candidate terms have no lifecycle.** `status: 'candidate'` exists in the type and nothing creates one. the intended flow, a proposal that becomes a candidate term before it becomes canonical, needs the store first.
 
-**no cross-slice relation.** two ontologies currently share nothing but the meta-model. the interesting case, a `deal` in `crm.pipeline` and a `deployment` in `repo.orchart` being the same event seen twice, needs a relation between slices and a decision about which side owns the individual. that is the next document, and it is the one that makes the org able to notice it shipped something twice.
+**contracts are named, not typed.** `code.change` says a slice fulfils something; it does not say what shape that something is. two slices can name the same contract and mean different things, and only a human reading both documents would notice. a contract needs a schema and a version before a business can be assembled without review.
+
+**no cross-slice identity.** the slices share a meta-model and a contract list, and nothing else. the interesting case, a `financial` price change and a `doc` page describing it being the same event seen twice, needs a relation between slices and a decision about which side owns the individual. that is the next document.

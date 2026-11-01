@@ -1,0 +1,101 @@
+{
+  "slice": "media.studio",
+  "version": 1,
+  "depth": "thesaurus",
+  "kinds": [
+    "media"
+  ],
+  "provides": [
+    "media.asset"
+  ],
+  "requires": [
+    "design.asset"
+  ],
+  "classes": [
+    "Asset",
+    "Render",
+    "Script",
+    "Voiceover",
+    "Cut"
+  ],
+  "actions": [
+    "render",
+    "cut",
+    "mix",
+    "publish",
+    "retire"
+  ],
+  "axioms": [
+    "a published asset is derived from exactly one approved render",
+    "an asset never ships with a voice or likeness that has no recorded consent"
+  ],
+  "terms": [
+    {
+      "id": "render",
+      "label": "render",
+      "aliases": [
+        "export",
+        "final file",
+        "master"
+      ],
+      "category": "artifact"
+    },
+    {
+      "id": "cut",
+      "label": "cut",
+      "aliases": [
+        "edit",
+        "version",
+        "take"
+      ],
+      "parent": "render"
+    },
+    {
+      "id": "script",
+      "label": "script",
+      "aliases": [
+        "copy",
+        "voiceover text",
+        "storyboard"
+      ],
+      "category": "artifact"
+    },
+    {
+      "id": "broll",
+      "label": "b-roll",
+      "aliases": [
+        "supplementary footage",
+        "background clip"
+      ],
+      "category": "asset"
+    },
+    {
+      "id": "consent",
+      "label": "consent",
+      "aliases": [
+        "release form",
+        "likeness permission"
+      ],
+      "category": "constraint"
+    },
+    {
+      "id": "retire",
+      "label": "retire",
+      "aliases": [
+        "unpublish",
+        "pull",
+        "take down"
+      ],
+      "category": "action"
+    }
+  ],
+  "acceptance": {
+    "media": {
+      "evidence": [
+        "asset:",
+        "render:"
+      ],
+      "gate": "the asset resolves, its hash matches the approved render, duration and dimensions match the declared spec, and every voice or likeness in it has consent on record"
+    }
+  }
+}
