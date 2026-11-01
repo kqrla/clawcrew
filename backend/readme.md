@@ -2,7 +2,7 @@
 
 the engine that enforces the spec in [`../docs`](../docs). letters before lines: this is v0.1 of the backend, and it implements the parts that are load-bearing and testable, not the whole chart.
 
-98 tests, zero failing. typecheck clean under `strict` + `noUncheckedIndexedAccess`.
+114 tests, zero failing. typecheck clean under `strict` + `noUncheckedIndexedAccess`.
 
 ## stack
 
@@ -39,14 +39,14 @@ src/domain/      pure functions. no io. this is the spec, executable.
   events.ts        canonical json, hash chain, jsonl
   relay.ts         crossings, envelopes, directional permeability, hop bounds
   convergence.ts   partition maps, barrier, join rules, integration gate
-src/ports/       artifacts (content-addressed) and projections (plane, karakeep)
+src/ports/       artifacts, projections (plane, karakeep), a2a boundary
 src/jobs/        weekly projection reconciliation (drift, repair by re-push)
 src/plugins/     the extension surface (see below)
 src/store/       postgres. the only place that talks to a db
 src/server/      hono app + a demo org for clicking around
 src/cli/tick.ts  one pass: expire leases, bounce handoffs, write events
 migrations/      schema, including the immutability trigger
-test/            98 tests, no database required
+test/            114 tests, no database required
 ```
 
 ## run it
@@ -56,7 +56,7 @@ cp .env.example .env
 docker compose up -d
 npm install
 npm run migrate          # or: psql $DATABASE_URL -f migrations/0001_init.sql
-npm test                 # 98 passing, no db needed
+npm test                 # 114 passing, no db needed
 npm run dev              # http://localhost:8787
 npm run tick             # one scheduler pass
 ```
@@ -113,6 +113,8 @@ const registry = PluginRegistry.fromConfig(
 - convergence barrier for parallel teams: exhaustive partitions, join semantics, conflict detection
 - integration gate that refuses closure on a satisfied barrier alone
 - projection reconciliation: drift findings, repair by re-push, never a local state change
+- a2a boundary: narrowed agent cards, envelope-to-message round-trip, sender identity from transport only
+- a2a task mapping onto handoffs, with completion treated as a claim
 
 ## what is not
 

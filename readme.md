@@ -60,7 +60,8 @@ the wedge is narrower than the vision: run **one** revenue-bearing surface end t
 | [15-references](docs/15-references.md) | what was taken from whom, and what was not |
 | [16-durability](docs/16-durability-and-projections.md) | the record, the artifacts, and why plane and karakeep are projections |
 | [17-sandbox](docs/17-sandbox-permeability-and-convergence.md) | isolation plus permeability, the relay, and how parallel teams converge |
-| [backend](backend/readme.md) | the working engine: stack, plugin surface, 98 tests |
+| [18-a2a](docs/18-a2a-boundary.md) | inter-org comms, and why a2a is a port rather than a platform |
+| [backend](backend/readme.md) | the working engine: stack, plugin surface, 114 tests |
 
 diagram: [diagrams/org-model.svg](diagrams/org-model.svg)
 
