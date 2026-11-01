@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Action, WorkRow } from '../src/domain/liveness.js';
-import { Seat, claimWork, complete, progress, renew } from '../src/domain/custody.js';
+import { MetricObservation, Seat, claimWork, complete, progress, renew } from '../src/domain/custody.js';
 import { TickerPorts, runTick } from '../src/jobs/ticker.js';
 import { findingKey } from '../src/store/tick-store.js';
 
@@ -25,6 +25,9 @@ interface Sim {
   revocations: number;
   heldBy: Map<string, string>; // seat -> row id (one at a time)
   lost: Map<string, Set<string>>; // seat -> rows it must not retake
+  /** the objective's metric, as the outside world measures it */
+  metric: number;
+  refusals: Map<string, number>;
   seen: Set<string>; // finding dedupe, as the store does it
   ticking: string;
 }
@@ -37,6 +40,8 @@ function sim(): Sim {
     revocations: 0,
     heldBy: new Map(),
     lost: new Map(),
+    metric: 40, // retention %, measured by something that is not a seat
+    refusals: new Map(),
     seen: new Set(),
     ticking: '',
   };
@@ -90,12 +95,33 @@ function spawn(s: Sim, n: number, now: string): void {
     nextActionAt: new Date(Date.parse(now) + 15 * 60_000).toISOString(),
     claimDeadlineAt: new Date(Date.parse(now) + 15 * 60_000).toISOString(),
     progressVersion: 0,
+    // the brief is written against a reading, and the reading is recorded with
+    // it, so the first progress has a baseline to beat
+    metricValueAt: s.metric,
+    metricObservedAt: now,
     attempts: 0,
     // one row may be attempted once: a deliberate case for the exhaustion path,
     // since a healthy pool rescues most dead holders before they spend out.
     maxAttempts: n === 2 ? 1 : 3,
   });
 }
+
+/**
+ * the reading a tier would take from the objective's own source. nobody in the
+ * org computes it, which is the point: the number that resets a spin counter
+ * must come from outside the seat that benefits from it.
+ */
+function readMetric(s: Sim, now: string): MetricObservation {
+  return {
+    objective: 'obj.retention.v2',
+    source: 'sql:select retention from metrics',
+    value: s.metric,
+    computedAt: now,
+    runBy: 'auditor.weekly',
+  };
+}
+
+const refuse = (s: Sim, reason: string) => s.refusals.set(reason, (s.refusals.get(reason) ?? 0) + 1);
 
 const SEATS: { seat: Seat; behaviour: Behaviour }[] = [
   { seat: { id: 'seat.good', slice: ['repo.orchart'] }, behaviour: 'work' },
@@ -115,12 +141,23 @@ function seatTurn(s: Sim, entry: { seat: Seat; behaviour: Behaviour }, now: stri
   if (holds) {
     if (behaviour === 'die') return; // alive in the process table, gone in fact
     if (behaviour === 'spin') {
+      // a seat that would rather be seen working than work: it claims progress
+      // without doing anything, so the metric has not moved, so it is refused
+      const claimed = progress(live!, seat.id, now, { ttlMs: TTL_MS, observation: readMetric(s, now) });
+      if (!claimed.ok) refuse(s, claimed.reason);
       const r = renew(live!, seat.id, now, { ttlMs: TTL_MS });
       if (r.ok) s.rows.set(r.row.id, r.row);
       return;
     }
-    const p = progress(live!, seat.id, now, { ttlMs: TTL_MS });
-    if (!p.ok) return;
+
+    // real work: the outside world's number actually changes before the seat
+    // is allowed to say so
+    s.metric += 1;
+    const p = progress(live!, seat.id, now, { ttlMs: TTL_MS, observation: readMetric(s, now) });
+    if (!p.ok) {
+      refuse(s, p.reason);
+      return;
+    }
     s.rows.set(p.row.id, p.row);
     if (p.row.progressVersion >= 3) {
       const d = complete(p.row, seat.id, `artifact://sha256/${p.row.id}`, now);
@@ -138,7 +175,10 @@ function seatTurn(s: Sim, entry: { seat: Seat; behaviour: Behaviour }, now: stri
     .sort((a, b) => a.id.localeCompare(b.id))[0];
   if (!candidate) return;
 
-  const claimed = claimWork(candidate, seat, now, { ttlMs: TTL_MS });
+  const claimed = claimWork(candidate, seat, now, {
+    ttlMs: TTL_MS,
+    idempotencyKey: `claim:${candidate.id}:${now}`,
+  });
   if (!claimed.ok) return;
   s.rows.set(claimed.row.id, claimed.row);
   s.heldBy.set(seat.id, claimed.row.id);
@@ -230,6 +270,10 @@ describe('a month of ticks', () => {
     // the two controls that cost a month if they fail
     expect(blocked.every((r) => r.blockedReason === 'attempts_exhausted')).toBe(true);
     expect(s.findings.some((f) => f.kind === 'revoke_spinning')).toBe(true);
+    // the spine of docs/27 §11: a seat cannot spend a counter it did not earn
+    expect(s.refusals.get('metric_did_not_move')).toBeGreaterThan(0);
+    // and a producing seat is never refused for lack of evidence
+    expect(s.refusals.get('progress_requires_metric_evidence')).toBeUndefined();
     // a month of findings is a handful of records, not one per tick
     expect(s.findings.length).toBeLessThan(60);
   });

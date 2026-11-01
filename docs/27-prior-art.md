@@ -184,7 +184,12 @@ month.
 
 ## 9 · four things worth taking, ranked
 
-**a. budgets as policy plus reservation.** we have `tier.budget jsonb NOT NULL`
+all four were taken. implementation notes are appended to each, and the
+migration is `backend/migrations/20261101000000_budgets-and-evidence.sql`.
+
+**a. budgets as policy plus reservation.** ✅ landed in `domain/budget.ts` and
+two tables, with the state machine and the settled-completeness check enforced by
+the database. we have `tier.budget jsonb NOT NULL`
 and **zero call sites that read it** (`grep -rn budget backend/src` returns the
 tick's work budget and a comment). we store a spending limit and never enforce
 it, which in a dark factory is the exposure that matters most. take paperclip's
@@ -192,17 +197,21 @@ shape: a policy per scope with a window and a warn/hard-stop split, and a
 reservation with `held → settled | released` that is taken before the spend and
 settled after.
 
-**b. Ed25519 identity keys.** `key_id` is the fingerprint of the SPKI encoding,
+**b. Ed25519 identity keys.** ✅ landed in `crypto/identity.ts`: `key_id` is the
+sha256 of the SPKI DER, signatures are over a canonical encoding, and a card is
+verified against the bytes that arrived. `key_id` is the fingerprint of the SPKI encoding,
 private material is encrypted at rest, and the public half is readable without
 provisioning. this replaces the "sign entity cards for parent verification" item
 on the backlog with the standard shape instead of a bespoke one.
 
-**c. replan as a verb distinct from retry.** a rewrite of the brief, attributed
+**c. replan as a verb distinct from retry.** ✅ landed in `domain/custody.ts`:
+owner-only, refused while a holder is working, resets attempts, keeps the metric. a rewrite of the brief, attributed
 to the tier that wrote it, that resets the attempt count and bumps the objective
 version. without it, our recovery vocabulary cannot express the most common
 failure in the system.
 
-**d. `idempotency_key` plus `input_fingerprint` on claim.** a replay against
+**d. `idempotency_key` plus `input_fingerprint` on claim.** ✅ landed on the
+claim, with `replay_with_changed_input` as the refusal. a replay against
 changed inputs is a different operation, and today nothing distinguishes them. we
 have `progress_version` for ordering but no guard against delivering twice.
 
@@ -217,6 +226,15 @@ have `progress_version` for ordering but no guard against delivering twice.
 - **a manager as the hierarchy** (CrewAI). a manager is a router with a title.
 
 ## 11 · the gap this reading leaves us with
+
+closed. `progress` now takes a `MetricObservation` and refuses without one; see
+[07](07-objective-ledger.md#progress-is-not-evidence) and
+`test/custody-evidence.test.ts`. the month simulation had to grow an external
+metric to keep working, which is the correct kind of breakage: the spinner can no
+longer be believed, so the harness has to measure something.
+
+the reading below is what the gap was, kept because the reasoning is the reason
+the gate exists.
 
 `progress` resets the spin counter to zero, and progress is self-reported by the
 seat that benefits from it. Magentic-One's decaying counter is a mitigation, not

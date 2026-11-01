@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { WorkRow, sweep } from '../src/domain/liveness.js';
-import { Seat, abandon, claimWork, complete, progress, renew } from '../src/domain/custody.js';
+import { MetricObservation, Seat, abandon, claimWork, complete, progress, renew } from '../src/domain/custody.js';
 
 const NOW = '2026-11-01T12:00:00.000Z';
 const past = (m: number) => new Date(Date.parse(NOW) - m * 60_000).toISOString();
@@ -23,6 +23,15 @@ function ready(over: Partial<WorkRow> = {}): WorkRow {
     ...over,
   };
 }
+
+/** a reading from the objective's own source, taken by somebody who is not the seat */
+const reading = (value: number, at = NOW, runBy = 'auditor.weekly'): MetricObservation => ({
+  objective: 'obj.retention.v2',
+  source: 'sql:select retention from metrics',
+  value,
+  computedAt: at,
+  runBy,
+});
 
 const ok = (r: ReturnType<typeof claimWork>): WorkRow => {
   if (!r.ok) throw new Error(`expected success, got ${r.reason}`);
@@ -67,7 +76,7 @@ describe('holding work', () => {
     const spun = ok(renew(ok(renew(leased, 'seat.a', NOW)), 'seat.a', NOW));
     expect(spun.lease!.renewals).toBe(2);
 
-    const worked = ok(progress(spun, 'seat.a', NOW));
+    const worked = ok(progress(spun, 'seat.a', NOW, { observation: reading(41) }));
     expect(worked.progressVersion).toBe(1);
     expect(worked.progressAt).toBe(NOW);
     expect(worked.lease!.renewals).toBe(0);
@@ -79,7 +88,7 @@ describe('holding work', () => {
     for (let i = 0; i < 3; i++) {
       row = ok(renew(row, 'seat.a', NOW));
       row = ok(renew(row, 'seat.a', NOW));
-      row = ok(progress(row, 'seat.a', NOW));
+      row = ok(progress(row, 'seat.a', NOW, { observation: reading(42 + i) }));
     }
     expect(sweep([row], { now: NOW })).toEqual([]);
   });

@@ -68,6 +68,15 @@ export interface TaskRow {
   custody_holder: string | null;
   custody_expires_at: string | Date | null;
   custody_renewals: number;
+  brief: string | null;
+  objective_version: number | null;
+  metric_value_at: string | number | null;
+  metric_observed_at: string | Date | null;
+  claim_key: string | null;
+  input_fingerprint: string | null;
+  last_claim_at: string | Date | null;
+  replanned_by: string | null;
+  replanned_at: string | Date | null;
 }
 
 const iso = (v: string | Date): string => (v instanceof Date ? v.toISOString() : v);
@@ -140,6 +149,16 @@ export function toWork(r: TaskRow): WorkRow {
     evidenceRef: r.evidence_ref ?? undefined,
     cancelledReason: r.cancelled_reason ?? undefined,
     cancelledBy: r.cancelled_by ?? undefined,
+    ...(r.brief !== null ? { brief: r.brief } : {}),
+    ...(r.objective_version !== null ? { objectiveVersion: r.objective_version } : {}),
+    // numeric arrives as a string from pg; a metric compared as text never moves
+    ...(r.metric_value_at !== null ? { metricValueAt: Number(r.metric_value_at) } : {}),
+    ...(r.metric_observed_at !== null ? { metricObservedAt: iso(r.metric_observed_at) } : {}),
+    ...(r.claim_key !== null ? { claimKey: r.claim_key } : {}),
+    ...(r.input_fingerprint !== null ? { inputFingerprint: r.input_fingerprint } : {}),
+    ...(r.last_claim_at !== null ? { lastClaimAt: iso(r.last_claim_at) } : {}),
+    ...(r.replanned_by !== null ? { replannedBy: r.replanned_by } : {}),
+    ...(r.replanned_at !== null ? { replannedAt: iso(r.replanned_at) } : {}),
   };
 }
 
@@ -153,6 +172,10 @@ export async function writeWork(db: Queryable, w: WorkRow): Promise<void> {
             custody_renewals = $9, evidence_ref = $10,
             cancelled_reason = $11, cancelled_by = $12,
             progress_version = $13,
+            brief = $14, objective_version = $15,
+            metric_value_at = $16, metric_observed_at = $17,
+            claim_key = $18, input_fingerprint = $19, last_claim_at = $20,
+            replanned_by = $21, replanned_at = $22,
             completed_at = case when $2 = 'done' then coalesce(completed_at, now())
                                 else completed_at end
       where id = $1`,
@@ -170,6 +193,15 @@ export async function writeWork(db: Queryable, w: WorkRow): Promise<void> {
       w.cancelledReason ?? null,
       w.cancelledBy ?? null,
       w.progressVersion,
+      w.brief ?? null,
+      w.objectiveVersion ?? null,
+      w.metricValueAt ?? null,
+      w.metricObservedAt ?? null,
+      w.claimKey ?? null,
+      w.inputFingerprint ?? null,
+      w.lastClaimAt ?? null,
+      w.replannedBy ?? null,
+      w.replannedAt ?? null,
     ],
   );
 }

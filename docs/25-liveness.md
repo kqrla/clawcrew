@@ -154,19 +154,26 @@ the acceptance test for a month is not "it did something useful". it is: **no ro
    afterwards (the store blocks `delete` on `event`).
 7. **bounded ticks.** `workBudget` caps transitions per tick and the remainder is
    reported as `workDeferred` rather than dropped.
-8. **a month of simulated ticks.** `test/runtime-month.test.ts` runs 4,320 ticks
+8. **progress that costs evidence.** `progress` refuses without an observation of
+   the objective's metric that is newer than the last one and numerically
+   different, measured by somebody other than the holder. see
+   [07](07-objective-ledger.md#progress-is-not-evidence).
+9. **replan as a verb**, distinct from retry: the owning tier rewrites the brief,
+   the attempt count resets because the next runner answers a different question,
+   and the metric baseline survives so a rewrite cannot launder a stale number.
+10. **a month of simulated ticks.** `test/runtime-month.test.ts` runs 4,320 ticks
    with three seats, a dying holder, a spinning holder, and new work arriving,
    asserting the invariants on every tick rather than sampling them.
 
 what is still missing, in the order it would bite:
 
-9. **nothing says when a deferral is chronic.** `workDeferred` is counted and
+11. **nothing says when a deferral is chronic.** `workDeferred` is counted and
    then ignored; a tick that defers every cycle needs an alarm, and today it has
    a number nobody reads.
-10. **no real agents.** the harness drives the domain with scripted seats. it
+12. **no real agents.** the harness drives the domain with scripted seats. it
     proves the machinery, not the behaviour of a model under a lease, which is
     the only thing a month actually tests.
-11. **transport adapters.** a relay still cannot deliver, so the org cannot talk
+13. **transport adapters.** a relay still cannot deliver, so the org cannot talk
     to itself across sandboxes (docs/22 §11).
 
 ## 11 · open questions

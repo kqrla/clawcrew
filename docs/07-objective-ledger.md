@@ -151,3 +151,30 @@ changing a target mid-flight is legal and visible.
 - an amendment within 14 days of a deadline is flagged for human review, because that is the shape of a target being gamed.
 
 a target moved because the market moved is strategy. a target moved because the team was going to miss it is drift. the system cannot always tell the difference, but it can make the difference visible, which is most of the value.
+
+## progress is not evidence
+
+a task used to be able to report progress. it no longer can: `progress` requires
+an observation of the objective's metric, read from the objective's own source,
+with the reader named and the time it was taken.
+
+four refusals make that real, and each one is a kind of lie that used to work:
+
+| refusal | the lie it stops |
+| --- | --- |
+| `progress_requires_metric_evidence` | "it's going well" |
+| `evidence_for_another_objective` | borrowing a good number from a different goal |
+| `evidence_predates_last_progress` | resubmitting last week's reading |
+| `metric_did_not_move` | the same value under a new timestamp |
+| `self_measured_progress` | the seat certifying its own work |
+
+the baseline is recorded when the brief is written (`task.metric_value_at`), so
+the first progress has to beat the number the work started from rather than
+whatever number the seat happens to find. a replan keeps the baseline: rewriting
+the brief cannot launder a stale measurement.
+
+this is the only loop in this spec that no prior system closed (see
+[27](27-prior-art.md) §11). magentic-one asks a model whether progress is being
+made; camel asks a model for a quality score. both are opinions about work rather
+than observations of its effect, and an opinion is the cheapest thing in the
+system to supply.

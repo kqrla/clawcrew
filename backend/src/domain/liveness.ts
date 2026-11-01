@@ -39,6 +39,20 @@ export interface WorkRow {
   evidenceRef?: string;
   cancelledReason?: string;
   cancelledBy?: string;
+  /** the instruction handed to whoever takes this row. replaced only by replan */
+  brief?: string;
+  /** the objective revision being executed. a replan bumps it */
+  objectiveVersion?: number;
+  /** who rewrote the brief. authority, so it is a name and a time, not a note */
+  replannedBy?: string;
+  replannedAt?: string;
+  /** the objective metric's last value recorded against this row's work */
+  metricValueAt?: number;
+  metricObservedAt?: string;
+  /** replay guard: the claim that produced the current lease */
+  claimKey?: string;
+  inputFingerprint?: string;
+  lastClaimAt?: string;
 }
 
 export interface SweepOptions {
