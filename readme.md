@@ -63,6 +63,9 @@ the wedge is narrower than the vision: run **one** revenue-bearing surface end t
 | [18-a2a](docs/18-a2a-boundary.md) | inter-org comms, and why a2a is a port rather than a platform |
 | [19-taxonomy](docs/19-position-in-the-taxonomy.md) | our position on the five axes of hmas, and the horizon defect it exposed |
 | [20-skills](docs/20-skills.md) | a skill library is how the org compounds, and how it must be stopped from rotting |
+| [21-scheduler](docs/21-scheduler.md) | rows not timers, missed ticks, jitter, and the lag that means it is alive |
+| [22-relay-logic](docs/22-relay-logic.md) | at-least-once, backoff, dead letters, receipts, why refs never prose |
+| [23-permeability](docs/23-permeability.md) | crossings as committed config, compiled then enforced |
 | [backend](backend/readme.md) | the working engine: stack, plugin surface, 114 tests |
 
 diagram: [diagrams/org-model.svg](diagrams/org-model.svg)

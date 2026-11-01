@@ -1,77 +1,77 @@
-import { createStore } from '../store/pg.js';
-import { escalationFor, type Lease } from '../domain/leases.js';
-import { expire, type Handoff } from '../domain/handoff.js';
+import pg from 'pg';
+import { createTickStore } from '../store/tick-store.js';
+import { runTick } from '../jobs/ticker.js';
+import { RelayMessage } from '../domain/relay-queue.js';
+
+const { Pool } = pg;
 
 /**
- * the ticker. deliberately boring: it runs every 15 seconds, does one pass,
- * writes events for anything that changed and exits. no long-lived workers,
- * so a crash cannot leave a responsibility looking staffed.
+ * the night shift: one tick every few seconds, forever.
+ *
+ *   node dist/cli/tick.js            # loop
+ *   node dist/cli/tick.js --once     # single tick, for cron or a test
+ *   node dist/cli/tick.js --once --require-transport
+ *
+ * relay delivery is disabled until a transport is configured, because a ticker
+ * that acks messages it never delivered is worse than one that does nothing.
  */
-async function main() {
+async function main(): Promise<void> {
+  const once = process.argv.includes('--once');
+  const requireTransport = process.argv.includes('--require-transport');
+  const intervalMs = Number(process.env.ORCHART_TICK_MS ?? 5000);
   const url = process.env.DATABASE_URL;
-  if (!url) {
-    console.error('DATABASE_URL is required');
-    process.exit(1);
-  }
-  const store = createStore(url);
-  const now = new Date().toISOString();
+  if (!url) throw new Error('DATABASE_URL is not set');
 
-  const expired = await store.query<{ id: string; tier: string; holder: string }>(
-    `update lease set state = 'expired'
-      where state = 'held' and expires_at < $1
-      returning id, tier, holder`,
-    [now],
-  );
+  const pool = new Pool({ connectionString: url });
+  const lockClient = await pool.connect();
 
-  for (const row of expired) {
-    const lease: Lease = {
-      id: row.id,
-      tier: row.tier,
-      responsibility: 'oncall',
-      holder: row.holder,
-      acquiredAt: now,
-      expiresAt: now,
-      heartbeatMs: 0,
-      maxRenewals: 0,
-      renewals: 0,
-      state: 'expired',
-      lastHeartbeat: now,
-    };
-    const step = escalationFor(lease, now);
-    await store.appendEvent(
-      `tier:${row.tier}`,
-      { type: 'lease.expired', lease: row.id, holder: row.holder, escalation: step?.kind ?? 'page_next_holder' },
-      now,
-    );
-    console.log(`lease ${row.id} expired → ${step?.kind ?? 'page_next_holder'}`);
+  const transportConfigured = process.env.ORCHART_TRANSPORT !== undefined;
+  if (requireTransport && !transportConfigured) {
+    throw new Error('ORCHART_TRANSPORT is not set; refusing to run relay delivery');
   }
 
-  const stale = await store.query<{ id: string; from_seat: string; to_seat: string; offered_at: string; timeout_ms: number }>(
-    `update handoff set state = 'expired'
-      where state = 'offered' and offered_at + (timeout_ms || ' milliseconds')::interval < $1
-      returning id, from_seat, to_seat, offered_at, timeout_ms`,
-    [now],
-  );
+  const store = createTickStore(pool, {
+    lockClient,
+    onDeliver: async (m: RelayMessage): Promise<'ack' | 'nack'> => {
+      // no transport yet: see docs/22 §11. the relay stays queued rather than
+      // pretending delivery happened.
+      console.warn(`[relay] no transport configured, leaving ${m.id} queued`);
+      return 'nack';
+    },
+  });
 
-  for (const row of stale) {
-    const h: Handoff = {
-      id: row.id,
-      from: row.from_seat,
-      to: row.to_seat,
-      precondition: '',
-      payloadRef: 'artifact://unknown',
-      acceptanceRequired: true,
-      timeoutMs: row.timeout_ms,
-      offeredAt: row.offered_at,
-      state: 'offered',
-    };
-    const next = expire(h, now);
-    await store.appendEvent('handoffs', { type: 'handoff.expired', handoff: row.id }, now);
-    console.log(`handoff ${next.id} expired, bounced to ${next.from}`);
+  const ports = transportConfigured
+    ? store
+    : { ...store, loadRelay: async () => [] };
+
+  let tickCount = 0;
+  const once_ = async (): Promise<void> => {
+    const now = new Date().toISOString();
+    const report = await runTick(ports, { now, tickCount: ++tickCount });
+    if (once || report.fired > 0 || report.relayLeased > 0) {
+      console.log(JSON.stringify(report));
+    }
+  };
+
+  await once_();
+  if (once) {
+    await pool.end();
+    return;
   }
 
-  await store.close();
-  console.log(`tick complete: ${expired.length} leases, ${stale.length} handoffs`);
+  const timer = setInterval(() => {
+    once_().catch((err) => {
+      console.error('[tick] failed', err);
+    });
+  }, intervalMs);
+
+  const shutdown = async (): Promise<void> => {
+    clearInterval(timer);
+    await pool.end();
+    process.exit(0);
+  };
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
 }
 
 main().catch((err) => {
