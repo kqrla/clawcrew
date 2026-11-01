@@ -4,9 +4,10 @@ tasks are hours. objectives are months. a **project** is the thing that has to s
 for thirty days by seats nobody is watching, and it is the only object in the system that spans
 more than one clock.
 
-test 1 is `test-01.figures`: a B2C business selling custom 3D-printed figures, built and operated
-by the factory. its brief lives in `test-projects/01-figures/`. the project record is the factory's
-statement of what that business is, what it may spend per unit, and what would make it stop.
+test 1 is `meenible`: a B2C business selling custom 3D-printed collector figures, built and operated
+by the factory. its brief lives in `test-projects/meenible/`. the project record is the factory's
+statement of what that business is, what it charges, what it may spend per unit, and what would make
+it stop.
 
 ---
 
@@ -53,6 +54,7 @@ legible to a human and actionable to a model.
 | `objectives_externally_measured` | an objective's source is `self`, is self-reported, or has no baseline or target |
 | `kill_criteria_too_thin` | no criterion names a condition someone could check ("it fails" is not one) |
 | `no_unit_cost_ceiling` | the project has no per-unit ceiling |
+| `price_not_above_ceiling` | the price is at or below the worst cost the project would accept |
 
 the second row is the plug-and-play check from [29](29-slice-ontology.md) promoted to a gate: a
 business is a set of slices, and a set that cannot cover its own contracts is not startable. the
@@ -79,8 +81,14 @@ this is where the business is either real or is a landing page.
 | `end_to_end_artifact` | no artifact went through the whole pipeline (recipe → validated mesh) |
 | `live_quote` | the per-unit cost is an estimate rather than a number from a fulfilment house |
 | `unit_cost_under_ceiling` | that number exceeds the ceiling declared at inception |
+| `unit_margin` | price minus quote falls below the margin floor declared at inception |
 | `all_parts_licensed` | any part's licence record is missing or unreadable |
 | `payment_rail_verified` | money has not actually moved through a verified rail |
+
+`unit_margin` exists because a cost ceiling alone cannot catch an underpriced business: with a $45
+ceiling and an $89 price, any acceptable quote clears a 40% margin, so the quote binds first and the
+margin is a guard rail. lower the price to $60 and the same $44 quote is inside the ceiling and still
+loses money on every order. the gate reports both numbers rather than a verdict.
 
 three of these are the three things that kill this particular business, and none of them is
 taste. the colour economics question is `unit_cost_under_ceiling`, checked against a live quote.
@@ -149,12 +157,14 @@ them firing is enough to kill.
   criteria or no cost ceiling cannot be inserted by any code path, including a bad one.
 - three views: `project_slice_unbacked` (a slice named at a version the ontology does not have),
   `project_slices_without_done_work` (the build gate as SQL), `project_launch_risk`.
-- `test-01.figures` seeded live: ten slices at ontology v1, eleven objectives with external
-  sources, a $22 unit ceiling, three kill criteria, phase `inception`.
-- 33 tests in `test/project.test.ts`, including the ones that matter: a full-colour quote at
-  $41.50 against a $22 ceiling blocks launch, one unlicensed part blocks launch, an unread licence
-  count is not zero, a support queue closed by its own author is not operating, and `review`
-  cannot resolve to "continue".
+- `meenible` seeded live: ten slices at ontology v1, eleven objectives whose sources are all
+  executable expressions, an $89 price against a $45 ceiling with a 40% margin floor, three kill
+  criteria, phase `inception`.
+- 41 tests in `test/project.test.ts`, including the ones that matter: a $61.50 full-colour quote
+  against a $45 ceiling blocks launch, a $44 quote under a $60 price blocks launch on margin alone,
+  one unlicensed part blocks launch, an unread licence count is not zero, an objective whose
+  `source` names a team instead of an expression never opens the gate, a support queue closed by its
+  own author is not operating, and `review` cannot resolve to "continue".
 
 ## 6 · what is not built, and the seam that matters
 
@@ -180,6 +190,12 @@ record which one answered:
 until each fact has a producer and a stored provenance, these gates are a specification of
 honesty rather than a guarantee of it. the difference is worth writing down rather than papering
 over: a gate that cannot say *who told it* is a gate a clever seat can satisfy by asserting.
+
+**a source can be executable and still be wrong.** `source_executable` proves the metric *can* be
+computed; it does not prove the expression measures the thing the statement claims. ten `sql:`
+strings that all return a plausible integer would satisfy every gate in this document, and nothing
+here would notice they measured nothing. that wants a test value per objective, recorded at
+inception: a source that has never returned a number is a source nobody has run.
 
 **phase history is text, not identity.** `project_phase_log.actor` is a string. it should be an
 Ed25519 card id, like every other attribution in the system.

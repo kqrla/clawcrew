@@ -29,18 +29,20 @@ const ALL = readdirSync(new URL('../ontology/', import.meta.url))
 const SLICES = ALL.map((o, i) => ({
   slice: o.slice,
   ontologyVersion: o.version,
-  objectiveRef: `obj.${o.slice}.v1`,
+  objectiveRef: `obj.meenible.${o.slice}`,
 }));
 
 const project = (over: Partial<Project> = {}): Project => ({
-  id: 'test-01.figures',
-  name: 'test 1 — custom 3D figures, B2C',
+  id: 'meenible',
+  name: 'meenible: custom collector figures, B2C',
   phase: 'inception',
   startedAt: NOW,
   phaseStartedAt: NOW,
-  objectiveRef: 'obj.figures.revenue.v1',
+  objectiveRef: 'obj.meenible.revenue',
   slices: SLICES,
-  unitCostCeilingUsd: 22,
+  unitCostCeilingUsd: 45,
+  unitPriceUsd: 89,
+  minMarginPct: 0.4,
   killCriteria: [
     'no printed figure can be produced under the ceiling from a live quote',
     'any part ships without a licence record',
@@ -53,7 +55,7 @@ const objectivesFor = (slices = SLICES): LedgerObjective[] =>
   slices.map((s) => ({
     ref: s.objectiveRef,
     metric: `${s.slice} shipped units per week`,
-    source: `provider.${s.slice}`,
+    source: `sql:select count(*) from shipment where slice = '${s.slice}' and shipped_at > now() - interval '7 days'`,
     baseline: 0,
     target: 1,
     selfReported: false,
@@ -93,6 +95,24 @@ describe('a project is startable or it is not', () => {
     expect(ids(evaluate(project(), ctx({ objectives: objs })))).toContain('objectives_externally_measured');
   });
 
+  it('refuses a source that names a team instead of an expression', () => {
+    const objs = objectivesFor();
+    objs[0] = { ...objs[0]!, source: 'the fulfilment team' };
+    const unmet = evaluate(project(), ctx({ objectives: objs })).filter((c) => !c.ok);
+    expect(unmet[0]!.id).toBe('objectives_externally_measured');
+    expect(unmet[0]!.detail.objectives).toEqual([
+      expect.objectContaining({ ref: objs[0]!.ref, runnable: false }),
+    ]);
+  });
+
+  it('accepts all four executable source kinds the ledger allows', () => {
+    const objs = objectivesFor().map((o, i) => ({
+      ...o,
+      source: ['sql:select 1', 'http:GET https://api.example.com/x', 'git:rev-list --count main', 'run:npm test'][i % 4]!,
+    }));
+    expect(ids(evaluate(project(), ctx({ objectives: objs })))).toEqual([]);
+  });
+
   it('refuses to start on an objective with no baseline or no target', () => {
     const objs = objectivesFor();
     objs[1] = { ...objs[1]!, target: null };
@@ -103,11 +123,11 @@ describe('a project is startable or it is not', () => {
   });
 
   it('refuses a project whose next slice has no objective at all', () => {
-    const objs = objectivesFor().filter((o) => o.ref !== 'obj.media.studio.v1');
+    const objs = objectivesFor().filter((o) => o.ref !== 'obj.meenible.media.studio');
     const unmet = evaluate(project(), ctx({ objectives: objs })).filter((c) => !c.ok);
     expect(unmet.map((u) => u.id)).toContain('objectives_present');
     expect(unmet.find((u) => u.id === 'objectives_present')!.detail.unresolved).toEqual([
-      'obj.media.studio.v1',
+      'obj.meenible.media.studio',
     ]);
   });
 
@@ -161,7 +181,7 @@ describe('assemble: the three things that kill this business are gates, not memo
   const inAssemble = project({ phase: 'assemble' });
   const good = {
     endToEndArtifact: 'artifact://sha256/9f2a',
-    liveQuoteUsd: 18.4,
+    liveQuoteUsd: 38.0,
     unlicensedParts: 0,
     paymentRailVerified: true,
   };
@@ -170,15 +190,49 @@ describe('assemble: the three things that kill this business are gates, not memo
     expect(ids(evaluate(inAssemble, ctx({ facts: good })))).toEqual([]);
   });
 
+  it('a quote inside the ceiling can still leave no margin', () => {
+    // $89 price, $60 cost: under no ceiling anyone would set, and still a business
+    // that loses money on every order once the print house has been paid
+    const unmet = evaluate(inAssemble, ctx({ facts: { ...good, liveQuoteUsd: 60 } })).filter((c) => !c.ok);
+    expect(unmet.map((u) => u.id)).toEqual(['unit_cost_under_ceiling', 'unit_margin']);
+  });
+
+  it('reports the margin as two numbers, not a feeling', () => {
+    // a $60 price against a $45 ceiling: the quote is acceptable and the business
+    // still is not
+    const p = project({ phase: 'assemble', unitCostCeilingUsd: 45, unitPriceUsd: 60, minMarginPct: 0.4 });
+    const unmet = evaluate(p, ctx({ facts: { ...good, liveQuoteUsd: 44 } })).filter((c) => !c.ok);
+    expect(unmet.map((u) => u.id)).toEqual(['unit_margin']);
+    expect(unmet[0]!.detail).toEqual({ price: 60, cost: 44, margin: 0.267, need: 0.4 });
+  });
+
+  it('at the collectors price the quote binds before the margin does', () => {
+    // $89 price, $45 ceiling: any acceptable cost clears 40%. so the number that
+    // decides this business is what the print house says, not what we wish it said
+    const p = project({ phase: 'assemble', unitCostCeilingUsd: 45, unitPriceUsd: 89, minMarginPct: 0.4 });
+    expect(ids(evaluate(p, ctx({ facts: { ...good, liveQuoteUsd: 45 } })))).toEqual([]);
+  });
+
+  it('no price means no margin, and that is a refusal not a zero', () => {
+    const p = project({ phase: 'assemble', unitPriceUsd: null });
+    const unmet = evaluate(p, ctx({ facts: good })).filter((c) => !c.ok);
+    expect(unmet.map((u) => u.id)).toEqual(['unit_margin']);
+  });
+
+  it('charging less than the worst acceptable cost is a structural fault', () => {
+    const faults = validateProject(project({ unitPriceUsd: 40, unitCostCeilingUsd: 45 }));
+    expect(faults.map((f) => f.id)).toContain('price_not_above_ceiling');
+  });
+
   it('blocks a price the fulfilment house never quoted', () => {
     const unmet = evaluate(inAssemble, ctx({ facts: { ...good, liveQuoteUsd: null } })).filter((c) => !c.ok);
-    expect(unmet.map((u) => u.id)).toEqual(['live_quote', 'unit_cost_under_ceiling']);
+    expect(unmet.map((u) => u.id)).toEqual(['live_quote', 'unit_cost_under_ceiling', 'unit_margin']);
   });
 
   it('blocks a full-colour promise the printer cannot honour at the ceiling', () => {
-    const unmet = evaluate(inAssemble, ctx({ facts: { ...good, liveQuoteUsd: 41.5 } })).filter((c) => !c.ok);
-    expect(unmet.map((u) => u.id)).toEqual(['unit_cost_under_ceiling']);
-    expect(unmet[0]!.detail).toEqual({ usd: 41.5, ceiling: 22 });
+    const unmet = evaluate(inAssemble, ctx({ facts: { ...good, liveQuoteUsd: 61.5 } })).filter((c) => !c.ok);
+    expect(unmet.map((u) => u.id)).toEqual(['unit_cost_under_ceiling', 'unit_margin']);
+    expect(unmet[0]!.detail).toEqual({ usd: 61.5, ceiling: 45 });
   });
 
   it('blocks launch on a single unlicensed part', () => {
@@ -274,7 +328,7 @@ describe('advancing', () => {
     steps.push(p.phase);
 
     p = (advance(p, ctx({ facts: {
-      endToEndArtifact: 'artifact://sha256/9f2a', liveQuoteUsd: 18.4,
+      endToEndArtifact: 'artifact://sha256/9f2a', liveQuoteUsd: 38.0,
       unlicensedParts: 0, paymentRailVerified: true,
     } })) as { project: Project }).project;
     steps.push(p.phase);
@@ -301,6 +355,7 @@ describe('advancing', () => {
         'live_quote',
         'unit_cost_under_ceiling',
         'all_parts_licensed',
+        'unit_margin',
         'payment_rail_verified',
       ]);
     }

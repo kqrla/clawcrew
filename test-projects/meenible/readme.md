@@ -1,7 +1,9 @@
-# test 1: custom 3D figures, B2C
+# meenible
 
-the first business the factory builds and runs. not a demo of the org: the workload that either
-produces a gate worth having or reveals one that is missing.
+custom collector figures, B2C. the first business the factory builds and runs.
+
+not a demo of the org: the workload that either produces a gate worth having or reveals one that
+is missing.
 
 - `brief.md` — what the business is, the architecture, and the three things that would kill it
 - `build-contract.md` — the catalog header convention, the generated driver, the repair loop, golden hashes
@@ -11,12 +13,17 @@ produces a gate worth having or reveals one that is missing.
 ## the project record, as seeded
 
 ```
-project        test-01.figures          phase: inception
-objective      obj.figures.revenue      metric: paid orders (stripe.charges)  0 -> 25
-unit ceiling   $22.00                   per shipped figure, from a live quote
-kill criteria  3                        cost, licence, harness refusal rate
-slices         10                       each with its own objective and external source
+project        meenible                 phase: inception
+objective      obj.meenible.revenue     metric: paid orders (stripe charges)  0 -> 25
+price          $89.00                  made-to-order collector piece
+unit ceiling   $45.00                  per shipped figure, from a live quote
+min margin     40%                     so the worst acceptable quote still leaves a business
+kill criteria  3                       cost, licence, harness refusal rate
+slices         10                      each with its own objective and executable source
 ```
+
+the workflow is deliberately cheaper than a generation pipeline: no per-doll 3D API, because the
+geometry is a versioned catalog and each user variation is a cached render. see `brief.md` §0.
 
 the three killers are gate conditions, not prose:
 

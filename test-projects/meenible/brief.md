@@ -1,4 +1,4 @@
-# figureforge
+# meenible
 
 a dress-up game where the doll is parametric OpenSCAD, so one configuration is simultaneously
 the preview, the STL a user downloads, and the file a print house ships.
@@ -6,6 +6,31 @@ the preview, the STL a user downloads, and the file a print house ships.
 rooms are part catalogs. pose is a rig. the exit is either an STL or an order.
 
 ---
+
+## 0 · why this workflow is cheaper than a generation pipeline
+
+the obvious build is: user describes a figure, a 3D generation API (Tripo, Meshy, Trellis and
+friends) returns a mesh. it is also the expensive one, and the cost scales with the two things
+this product does most.
+
+| | generation API per doll | parametric catalog |
+| --- | --- | --- |
+| cost driver | **every generation, every retry, every variation** | **catalog size** — authored once, amortised over all users |
+| marginal cost of a slider drag | one API call | a render of cached modules, milliseconds of CPU |
+| the 10,000th user picking the same hoodie | paid again | cache hit on a content hash |
+| output | unrigged, usually non-manifold, unprintable | every part authored, tested, licensed, print-oriented |
+| repair | a second model, or a human | the harness, mechanically |
+| a reprint a year later | cannot be reproduced | same recipe + same kit version = same mesh |
+| legal posture | whatever the model absorbed | every part has a declared licence record |
+
+the asymmetry that decides it: **dress-up games are fun in proportion to how much people iterate.**
+a generation pipeline charges per iteration, so the most engaging version of your product is the
+most expensive one to run. a catalog charges once for a part and then nothing, so engagement is
+free and the only thing that grows is authoring — which is where the moat is anyway.
+
+the model still does something, and it is the cheap thing: turning intent into a *selection*.
+"a cyberpunk courier with a drone" becomes a recipe of existing parts and numbers. that is a few
+hundred tokens, not a mesh, and two users asking for the same thing get the same cached answer.
 
 ## 1 · the decision everything else follows from
 
@@ -129,6 +154,17 @@ under its own chin. the orientation travels with the part, because only the part
 everything above is engineering, and engineering is the part you can do. these are the parts
 that decide whether it exists.
 
+### 5.0 the market, before the mechanics
+
+collector figurine buyers are not toy buyers. the same person who will not pay $20 for a plastic
+figure pays $60–$150 for a made-to-order one, and the things they are paying for are exactly the
+things a parametric catalog can do better than a toy factory: their own character, their own pose,
+a size they choose, an edition of one. that is why the project's declared price is **$89** against
+a **$45** cost ceiling, rather than the $22 a mass-market figure would have to hit.
+
+the consequence for every gate below: this business fails on **cost and legality**, not on
+whether people want it. there is no version of this that works by being cheap for the buyer.
+
 ### 5.1 colour economics
 
 a collectible reads as a collectible because of paint. printing is not painting, and the gap is
@@ -138,11 +174,16 @@ where the unit economics live:
 | --- | --- | --- | --- |
 | FDM, one part per colour | ~6–8 per figure | cheap, visible layer lines | the default cheap tier. **the product is a snap-fit kit**, not a painted figure |
 | FDM + multicolour head (AMS-type) | 4–8, with purge waste | mid, slower, waste per swap | good for the face/head only, where colour matters most |
-| full colour (PolyJet / binder jet) | photographic | boutique pricing, fragile, rough surface | premium tier only. this is what "looks like the render" costs |
+| full colour (PolyJet / binder jet) | photographic | boutique pricing, fragile, rough surface | **the collector tier.** at $89 a figure this is affordable; at $20 it never was |
 
-so the honest product shape is: **a multi-part snap-fit figure, printed in a farm, priced as a
-kit**, with full colour as the expensive option and "paint it yourself" as the cheap one that
-people actually enjoy. anyone promising a $15 full-colour collectible is selling a subsidy.
+so there are two products, not one: a **snap-fit kit printed in a farm** for the $30–40 end, and a
+**full-colour figure** for the collector tier where the $89 price makes the quote survivable. both
+are the same recipe; only the material and the price change, which is the point of separating
+geometry from manufacturing.
+
+and the check is not a spreadsheet: `unit_margin` in the project's assemble gate compares the
+price to a quote from the actual print house, and refuses launch when the difference is a habit
+rather than a business.
 
 ### 5.2 IP, which is the real minefield
 

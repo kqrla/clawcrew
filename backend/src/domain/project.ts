@@ -57,14 +57,25 @@ export interface Project {
   slices: ProjectSlice[];
   /** what one shipped unit has to cost, from a live quote, or the business does not exist */
   unitCostCeilingUsd: number;
+  /** what we charge for one shipped unit. a margin is a fact about two numbers, not a hope */
+  unitPriceUsd?: number | null;
+  /** gross margin floor as a fraction of price, declared at inception */
+  minMarginPct?: number;
   /** declared at inception, so that stopping is a decision made before the sunk cost exists */
   killCriteria: string[];
 }
 
+/**
+ * the database enforces this (`source_executable`), and the domain has to agree,
+ * or a project can pass a gate in memory that it could never pass in storage.
+ * a source is an expression something can run, never the name of a team.
+ */
+export const EXECUTABLE_SOURCE = /^(sql|http|git|run):\S+/;
+
 export interface LedgerObjective {
   ref: string;
   metric: string;
-  /** where the number comes from. 'self' means the reporting seat measured itself, which is not a source */
+  /** an executable expression. 'self' means the owning seat measured itself, which is not a source */
   source: string;
   baseline: number | null;
   target: number | null;
@@ -127,6 +138,14 @@ export function validateProject(project: Project): Check[] {
     faults.push(fail('duplicate_slice'));
   }
   if (!(project.unitCostCeilingUsd > 0)) faults.push(fail('no_unit_cost_ceiling'));
+  if (typeof project.unitPriceUsd === 'number' && project.unitPriceUsd <= project.unitCostCeilingUsd) {
+    // charging less than the worst acceptable cost is a business that only works
+    // by accident
+    faults.push(fail('price_not_above_ceiling', {
+      price: project.unitPriceUsd,
+      ceiling: project.unitCostCeilingUsd,
+    }));
+  }
   if (project.killCriteria.filter((c) => c.trim().length > 12).length === 0) {
     // "it fails" is not a kill criterion. it has to name a condition someone can check.
     faults.push(fail('kill_criteria_too_thin', { criteria: project.killCriteria }));
@@ -158,15 +177,26 @@ function inception(project: Project, ctx: ProjectContext): Check[] {
       : fail('objectives_present', { unresolved }),
   );
 
-  // an objective measured by the seat that owns it is a mood, not a metric
+  // an objective measured by the seat that owns it is a mood, not a metric, and
+  // neither is one measured by an expression nobody can run
   const selfMeasured = [...byRef.values()].filter(
-    (o) => o.source === 'self' || o.selfReported || o.baseline === null || o.target === null,
+    (o) =>
+      o.selfReported ||
+      !EXECUTABLE_SOURCE.test(o.source) ||
+      o.baseline === null ||
+      o.target === null,
   );
   checks.push(
     selfMeasured.length === 0
       ? pass('objectives_externally_measured')
       : fail('objectives_externally_measured', {
-          objectives: selfMeasured.map((o) => ({ ref: o.ref, source: o.source, baseline: o.baseline, target: o.target })),
+          objectives: selfMeasured.map((o) => ({
+            ref: o.ref,
+            source: o.source,
+            runnable: EXECUTABLE_SOURCE.test(o.source),
+            baseline: o.baseline,
+            target: o.target,
+          })),
         }),
   );
 
@@ -192,6 +222,8 @@ function build(project: Project, ctx: ProjectContext): Check[] {
 function assemble(_project: Project, ctx: ProjectContext): Check[] {
   const { endToEndArtifact, liveQuoteUsd, unlicensedParts, paymentRailVerified } = ctx.facts;
   const ceiling = _project.unitCostCeilingUsd;
+  const price = _project.unitPriceUsd ?? null;
+  const minMargin = _project.minMarginPct ?? 0.4;
   const checks: Check[] = [];
 
   checks.push(
@@ -220,6 +252,25 @@ function assemble(_project: Project, ctx: ProjectContext): Check[] {
       ? pass('all_parts_licensed')
       : fail('all_parts_licensed', { unlicensed: unlicensedParts ?? 'unknown' }),
   );
+
+  // the point of a catalog instead of a generation pipeline is this number. a
+  // render costs milliseconds of cached cpu; an api call costs money every time a
+  // user drags a slider. the gate insists the difference shows up as margin.
+  if (typeof price === 'number' && typeof liveQuoteUsd === 'number' && price > 0) {
+    const margin = (price - liveQuoteUsd) / price;
+    checks.push(
+      margin >= minMargin
+        ? pass('unit_margin', { price, cost: liveQuoteUsd, margin: Math.round(margin * 1000) / 1000, need: minMargin })
+        : fail('unit_margin', {
+            price,
+            cost: liveQuoteUsd,
+            margin: Math.round(margin * 1000) / 1000,
+            need: minMargin,
+          }),
+    );
+  } else {
+    checks.push(fail('unit_margin', { price, cost: liveQuoteUsd ?? null, need: minMargin }));
+  }
 
   checks.push(
     paymentRailVerified === true
