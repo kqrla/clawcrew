@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://figureforge.dev/recipe/v1.json",
+  "title": "figureforge recipe v1",
+  "description": "The only thing a model may emit. A recipe names parts from a pinned kit and sets their parameters; it never contains code. Two kilobytes of JSON is the whole doll.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "kit", "body", "pose"],
+  "properties": {
+    "schema": { "const": "figureforge/recipe@1" },
+    "kit": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*\\.v[0-9]+$",
+      "description": "exact catalog version. a recipe is invalid against any other kit, which is what makes an old doll reprint identically."
+    },
+    "title": { "type": "string", "maxLength": 80 },
+    "height_mm": {
+      "type": "integer",
+      "enum": [64, 75, 100, 150],
+      "description": "printed height. the kit scales, the layer height does not."
+    },
+    "body": { "$ref": "#/$defs/selection" },
+    "rooms": {
+      "type": "object",
+      "description": "one entry per room; a room is a category of part, not a screen.",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^(hair|face|top|bottom|outerwear|shoes|hat|prop|plinth)$": {
+          "type": "array",
+          "maxItems": 3,
+          "items": { "$ref": "#/$defs/selection" },
+          "description": "an array because a slot can layer: a shirt under a jacket. ordering is layering order."
+        }
+      }
+    },
+    "palette": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z][a-z0-9_]{0,23}$": {
+          "type": "string",
+          "pattern": "^#[0-9a-f]{6}$",
+          "description": "one filament colour per slot. a part prints in exactly one colour."
+        }
+      },
+      "description": "slot -> hex. the palette is data, so a recolour never invalidates geometry."
+    },
+    "pose": { "$ref": "#/$defs/pose" },
+    "pose_mode": {
+      "enum": ["curated", "free", "articulated"],
+      "default": "curated",
+      "description": "curated snaps to print-validated poses; free is preview and stl export only; articulated is a different kit, not a setting."
+    },
+    "notes": { "type": "string", "maxLength": 500 }
+  },
+  "$defs": {
+    "selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["part"],
+      "properties": {
+        "part": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "an id that must exist in the named room of the pinned kit. unknown ids are a vocabulary failure, not a fallback."
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": { "type": "number" },
+          "description": "must satisfy the part's declared min/max/step, quantised to 0.01. the harness clamps nothing and guesses nothing: out of range is a failure."
+        },
+        "colour": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,23}$",
+          "description": "a palette slot name. a literal hex here is rejected so that recolouring stays a data change."
+        }
+      }
+    },
+    "pose": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "a curated pose id, or 'custom' when angles are supplied."
+        },
+        "angles": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^(neck|shoulder_l|shoulder_r|elbow_l|elbow_r|hip_l|hip_r|knee_l|knee_r|spine)$": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["deg"],
+              "properties": {
+                "deg": { "type": "number", "minimum": -180, "maximum": 180 },
+                "axis": { "enum": ["x", "y", "z"], "default": "x" }
+              }
+            }
+          },
+          "description": "joint limits live in the kit, not here. this schema only bounds what is physically expressible."
+        }
+      }
+    }
+  }
+}
