@@ -2,7 +2,7 @@
 
 the engine that enforces the spec in [`../docs`](../docs). letters before lines: this is v0.1 of the backend, and it implements the parts that are load-bearing and testable, not the whole chart.
 
-60 tests, zero failing. typecheck clean under `strict` + `noUncheckedIndexedAccess`.
+68 tests, zero failing. typecheck clean under `strict` + `noUncheckedIndexedAccess`.
 
 ## stack
 
@@ -19,11 +19,13 @@ no redis, no temporal, no queue. the ticker is a cron that does one pass and exi
 
 ## the one place the spec had to be inverted
 
-`docs/11-memory.md` says git is the source of truth and memory is a derived index. that is right for decisions and transcripts. it is wrong for `leases`, `handoffs` and surface locks, which need atomic multi-row transitions that a filesystem cannot join to a transaction.
+`docs/11-memory.md` says git is the source of truth and memory is a derived index. that is right for decisions and transcripts. it is wrong for `leases`, `handoffs` and surface locks, which need atomic multi-row transitions a filesystem cannot join to a transaction.
 
-so: **postgres is the coordination store, and the event log lives in it** with a hash chain and an append-only trigger. portability comes from **export**, not from making git the write path: `event` streams dump to jsonl, `verifyChain()` proves the export was not rewritten, and a rebuild from events is the acceptance test for the storage layer.
+so the record lives in postgres (hash-chained, append-only by trigger) and is **exported** as content-addressed jsonl segments with a weekly manifest. git is a destination, not a mechanism. see `../docs/16-durability-and-projections.md`.
 
-if you want the audit in git, export it. do not write it there.
+artifacts are content-addressed blobs behind `src/ports/artifacts.ts`, because evidence must reference a hash and not a url: urls rot and pages change under you.
+
+plane and karakeep are **projections**: write-only out, proposal-only in. a card dragged to done in plane becomes a `completion_request`, and `guardCompletion()` answers it with the ledger. a karakeep summary is tagged `runBy: karakeep` and can never close an objective.
 
 ## layout
 
@@ -35,12 +37,13 @@ src/domain/      pure functions. no io. this is the spec, executable.
   handoff.ts       state machine, precondition, undelivered
   objectives.ts    ledger rules, closure, drift queries
   events.ts        canonical json, hash chain, jsonl
+src/ports/       artifacts (content-addressed) and projections (plane, karakeep)
 src/plugins/     the extension surface (see below)
 src/store/       postgres. the only place that talks to a db
 src/server/      hono app + a demo org for clicking around
 src/cli/tick.ts  one pass: expire leases, bounce handoffs, write events
 migrations/      schema, including the immutability trigger
-test/            60 tests, no database required
+test/            68 tests, no database required
 ```
 
 ## run it
@@ -50,7 +53,7 @@ cp .env.example .env
 docker compose up -d
 npm install
 npm run migrate          # or: psql $DATABASE_URL -f migrations/0001_init.sql
-npm test                 # 60 passing, no db needed
+npm test                 # 68 passing, no db needed
 npm run dev              # http://localhost:8787
 npm run tick             # one scheduler pass
 ```
@@ -100,12 +103,16 @@ const registry = PluginRegistry.fromConfig(
 - weekly auditor: q1 claim vs measurement, q2 untraceable, q3 spend without movement
 - postgres schema with one-live-holder index, append-only trigger, recursive chain view
 - hono api: authority, policy, objectives, plugins, health
+- content-addressed artifact store (filesystem; swap for minio behind three methods)
+- plane projection with idempotent upsert, and a webhook guard that refuses completion without evidence
+- karakeep indexer for sources, deliberately unable to close anything
 
 ## what is not
 
 - no channels, decisions or votes yet
 - no secondment api (the domain function exists, the routes do not)
 - no memory adapters, no model router implementation
+- no minio adapter yet, and no weekly hash anchor job, which is the most skippable and most load-bearing step
 - no auth. the api is a local surface; do not expose it
 - no surface-lock integration in the tool layer yet
 - the auditor is not yet a separate identity with separate credentials, which the spec says is the load-bearing part
