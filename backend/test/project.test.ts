@@ -32,6 +32,18 @@ const SLICES = ALL.map((o, i) => ({
   objectiveRef: `obj.meenible.${o.slice}`,
 }));
 
+/** a recorded run of each objective source, taken by a runner that is not the tier */
+const readingsFor = (objectives: LedgerObjective[] = objectivesFor()) =>
+  objectives.map((o, i) => ({
+    objectiveRef: o.ref,
+    objectiveVersion: 1,
+    source: o.source,
+    value: i + 1,
+    ok: true,
+    computedAt: new Date(Date.parse(NOW) - 60_000).toISOString(),
+    runBy: 'runner.gauges',
+  }));
+
 const project = (over: Partial<Project> = {}): Project => ({
   id: 'meenible',
   name: 'meenible: custom collector figures, B2C',
@@ -58,6 +70,7 @@ const objectivesFor = (slices = SLICES): LedgerObjective[] =>
     source: `sql:select count(*) from shipment where slice = '${s.slice}' and shipped_at > now() - interval '7 days'`,
     baseline: 0,
     target: 1,
+    ownerTier: 't.test01',
     selfReported: false,
   }));
 
@@ -65,6 +78,7 @@ const ctx = (over: Partial<ProjectContext> = {}): ProjectContext => ({
   now: NOW,
   composition: compose(ALL),
   objectives: objectivesFor(),
+  readings: readingsFor(),
   done: [],
   facts: {},
   ...over,
@@ -106,11 +120,36 @@ describe('a project is startable or it is not', () => {
   });
 
   it('accepts all four executable source kinds the ledger allows', () => {
-    const objs = objectivesFor().map((o, i) => ({
-      ...o,
-      source: ['sql:select 1', 'http:GET https://api.example.com/x', 'git:rev-list --count main', 'run:npm test'][i % 4]!,
-    }));
-    expect(ids(evaluate(project(), ctx({ objectives: objs })))).toEqual([]);
+    const kinds = [
+      'sql:select count(*) from shipment where n = %d',
+      'http:GET https://api.example.com/x?id=%d',
+      'git:rev-list --count main --grep=%d',
+      'run:npm test -- --grep=%d',
+    ];
+    const objs = objectivesFor().map((o, i) => ({ ...o, source: kinds[i % 4]!.replace('%d', String(i)) }));
+    expect(ids(evaluate(project(), ctx({ objectives: objs, readings: readingsFor(objs) })))).toEqual([]);
+  });
+
+  it('refuses ten objectives that are one metric copied ten times', () => {
+    const objs = objectivesFor().map((o) => ({ ...o, source: 'sql:select count(*) from orders' }));
+    const unmet = evaluate(project(), ctx({ objectives: objs, readings: readingsFor(objs) })).filter((c) => !c.ok);
+    expect(unmet.map((c) => c.id)).toEqual(['sources_distinct']);
+    expect(unmet[0]!.detail.shared).toHaveLength(1);
+  });
+
+  it('refuses to start on a metric nobody has ever run', () => {
+    const unmet = evaluate(project(), ctx({ readings: [] })).filter((c) => !c.ok);
+    expect(unmet.map((c) => c.id)).toEqual(['metrics_verified']);
+    const first = (unmet[0]!.detail.unverified as { ref: string; reason: string }[])[0]!;
+    expect(first.reason).toBe('no_reading');
+  });
+
+  it('refuses a metric last measured by the tier that owns it', () => {
+    const objs = objectivesFor();
+    const readings = readingsFor(objs).map((r, i) => (i === 0 ? { ...r, runBy: 't.test01' } : r));
+    const unmet = evaluate(project(), ctx({ objectives: objs, readings })).filter((c) => !c.ok);
+    const detail = unmet.find((c) => c.id === 'metrics_verified')!.detail.unverified as { reason: string }[];
+    expect(detail.map((d) => d.reason)).toEqual(['self_measured']);
   });
 
   it('refuses to start on an objective with no baseline or no target', () => {

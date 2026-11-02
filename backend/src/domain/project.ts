@@ -6,6 +6,7 @@
  * phases, and a phase moves only when a gate over rows says it may. there is no
  * "call it done" verb: the same reason custody refuses prose evidence.
  */
+import { Reading, acceptReading, duplicateSources } from './measure.js';
 import { Composition } from './ontology.js';
 import { TaskKind } from './ontology.js';
 import { isReference } from './relay.js';
@@ -80,6 +81,8 @@ export interface LedgerObjective {
   baseline: number | null;
   target: number | null;
   selfReported: boolean;
+  /** the tier that owns the number, so a reading can be checked for self-measurement */
+  ownerTier?: string;
 }
 
 /** completed work, projected to the fields a gate reads */
@@ -113,6 +116,8 @@ export interface ProjectContext {
   now: string;
   composition: Composition;
   objectives: LedgerObjective[];
+  /** recorded runs of each objective source. a source nobody ran is not a metric */
+  readings?: Reading[];
   done: DoneWork[];
   facts: ProjectFacts;
 }
@@ -198,6 +203,37 @@ function inception(project: Project, ctx: ProjectContext): Check[] {
             target: o.target,
           })),
         }),
+  );
+
+  // the hole this closes: `source` being executable proves a metric *can* be
+  // computed. it does not prove anyone ran it. an objective with no recorded run
+  // is a promise to measure something later, and later is how a project reaches
+  // month two having measured nothing.
+  const subjects = project.slices
+    .map((s) => byRef.get(s.objectiveRef))
+    .filter((o): o is LedgerObjective => o !== undefined)
+    .map((o) => ({ ref: o.ref, source: o.source, ownerTier: o.ownerTier ?? '' }));
+  const readings = ctx.readings ?? [];
+  const unverified = subjects
+    .map((s) => {
+      const reading = readings
+        .filter((r) => r.objectiveRef === s.ref)
+        .sort((a, b) => Date.parse(b.computedAt) - Date.parse(a.computedAt))[0];
+      const verdict = acceptReading(s, reading, { now: ctx.now });
+      return verdict.ok ? null : { ref: s.ref, reason: verdict.reason, detail: verdict.detail };
+    })
+    .filter((v): v is NonNullable<typeof v> => v !== null);
+  checks.push(
+    unverified.length === 0
+      ? pass('metrics_verified', { readings: subjects.length })
+      : fail('metrics_verified', { unverified }),
+  );
+
+  const shared = duplicateSources(subjects);
+  checks.push(
+    shared.length === 0
+      ? pass('sources_distinct', { count: subjects.length })
+      : fail('sources_distinct', { shared }),
   );
 
   return checks;

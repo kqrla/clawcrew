@@ -55,6 +55,8 @@ legible to a human and actionable to a model.
 | `kill_criteria_too_thin` | no criterion names a condition someone could check ("it fails" is not one) |
 | `no_unit_cost_ceiling` | the project has no per-unit ceiling |
 | `price_not_above_ceiling` | the price is at or below the worst cost the project would accept |
+| `metrics_verified` | any slice objective has no accepted reading: never run, run by the owning tier, stale, or measured against a source that has since changed |
+| `sources_distinct` | two objectives read the same expression |
 
 the second row is the plug-and-play check from [29](29-slice-ontology.md) promoted to a gate: a
 business is a set of slices, and a set that cannot cover its own contracts is not startable. the
