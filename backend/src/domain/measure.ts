@@ -45,6 +45,8 @@ export function parseSource(source: string): { ok: true; plan: SourcePlan } | { 
 }
 
 export interface Reading {
+  /** which expression produced it. a crosscheck is a second way to ask the same question */
+  role?: 'primary' | 'crosscheck';
   objectiveRef: string;
   objectiveVersion: number;
   /** the source string that was actually run */
@@ -114,4 +116,107 @@ export function duplicateSources(subjects: ObjectiveSubject[]): { source: string
   return [...bySource.entries()]
     .filter(([, refs]) => refs.length > 1)
     .map(([source, refs]) => ({ source, refs }));
+}
+
+/**
+ * one number, two expressions.
+ *
+ * a metric computed by one expression is self-reporting one level down: the same
+ * org writes the gauge and reads it. corroboration is the cheapest independent
+ * check available, because it needs no second team, only a second way to ask.
+ */
+export type CorroborationState = 'agrees' | 'disagrees' | 'unverified' | 'not_declared';
+
+export interface Corroboration {
+  state: CorroborationState;
+  /** why it is not a verdict, or the numbers that disagree */
+  reason?: string;
+  primary?: number;
+  crosscheck?: number;
+  spreadPct?: number;
+  tolerancePct: number;
+}
+
+export const DEFAULT_TOLERANCE_PCT = 0.05;
+
+/**
+ * what is wrong with an objective's second expression, if anything. this is a
+ * declaration check and runs at inception, when there are no readings yet: the
+ * point is to refuse a plan that never intended to ask twice.
+ */
+export function crosscheckFault(subject: {
+  source: string;
+  crosscheckSource?: string | null;
+}): string | undefined {
+  const cross = (subject.crosscheckSource ?? '').trim();
+  if (!cross) return 'not_declared';
+  if (sameExpression(cross, subject.source)) return 'crosscheck_is_the_same_expression';
+  if (!/^(sql|http|git|run):\S/.test(cross)) return 'crosscheck_not_executable';
+  return undefined;
+}
+
+const sameExpression = (a: string, b: string): boolean =>
+  a.trim().toLowerCase().replace(/\s+/g, ' ') === b.trim().toLowerCase().replace(/\s+/g, ' ');
+
+/**
+ * does a second expression, run by somebody else, produce the same number?
+ *
+ * this cannot tell whether either expression measures the claim. it can tell
+ * whether two independent attempts to measure it agree, which is the difference
+ * between a number and a coincidence.
+ */
+export function corroborate(
+  subject: { ref: string; source: string; crosscheckSource?: string | null },
+  readings: Reading[],
+  opts: { now: string; maxAgeMs?: number; tolerancePct?: number },
+): Corroboration {
+  const tolerancePct = opts.tolerancePct ?? DEFAULT_TOLERANCE_PCT;
+  const declared = subject.crosscheckSource ?? null;
+  if (!declared) return { state: 'not_declared', tolerancePct };
+  if (sameExpression(declared, subject.source)) {
+    return { state: 'not_declared', reason: 'crosscheck_is_the_same_expression', tolerancePct };
+  }
+
+  const pick = (role: 'primary' | 'crosscheck' | undefined, source: string): Reading | undefined =>
+    readings
+      .filter((r) => r.objectiveRef === subject.ref && (role ? (r.role ?? 'primary') === role : true))
+      .filter((r) => r.source === source)
+      .sort((a, b) => Date.parse(b.computedAt) - Date.parse(a.computedAt))[0];
+
+  const primary = pick('primary', subject.source);
+  const cross = pick('crosscheck', declared);
+
+  if (!primary) return { state: 'unverified', reason: 'primary_never_run', tolerancePct };
+  if (!cross) return { state: 'unverified', reason: 'crosscheck_never_run', tolerancePct };
+  if (!primary.ok) return { state: 'unverified', reason: 'primary_failed', tolerancePct };
+  if (!cross.ok) return { state: 'unverified', reason: 'crosscheck_failed', tolerancePct };
+
+  const age = opts.maxAgeMs ?? DEFAULT_MAX_AGE_MS;
+  for (const r of [primary, cross]) {
+    if (!Number.isFinite(Date.parse(r.computedAt))) {
+      return { state: 'unverified', reason: 'reading_time_invalid', tolerancePct };
+    }
+    if (Date.parse(opts.now) - Date.parse(r.computedAt) > age) {
+      return { state: 'unverified', reason: 'reading_stale', tolerancePct };
+    }
+  }
+
+  // two expressions run by the same runner are two ways of asking the same person
+  if (primary.runBy === cross.runBy) {
+    return { state: 'unverified', reason: 'same_runner', tolerancePct };
+  }
+
+  if (primary.value === null || cross.value === null) {
+    return { state: 'unverified', reason: 'value_not_a_number', tolerancePct };
+  }
+
+  const a = primary.value;
+  const b = cross.value;
+  const scale = Math.max(Math.abs(a), Math.abs(b));
+  // two zeros agree; one zero and one non-zero never do
+  const spreadPct = scale === 0 ? 0 : Math.abs(a - b) / scale;
+
+  return spreadPct <= tolerancePct
+    ? { state: 'agrees', primary: a, crosscheck: b, spreadPct, tolerancePct }
+    : { state: 'disagrees', primary: a, crosscheck: b, spreadPct, tolerancePct };
 }

@@ -6,7 +6,7 @@
  * phases, and a phase moves only when a gate over rows says it may. there is no
  * "call it done" verb: the same reason custody refuses prose evidence.
  */
-import { Reading, acceptReading, duplicateSources } from './measure.js';
+import { Corroboration, Reading, acceptReading, corroborate, crosscheckFault, duplicateSources } from './measure.js';
 import { Composition } from './ontology.js';
 import { TaskKind } from './ontology.js';
 import { isReference } from './relay.js';
@@ -60,6 +60,8 @@ export interface Project {
   unitCostCeilingUsd: number;
   /** what we charge for one shipped unit. a margin is a fact about two numbers, not a hope */
   unitPriceUsd?: number | null;
+  /** how far a corroborating reading may sit from the primary, as a fraction */
+  corroborationTolerancePct?: number;
   /** gross margin floor as a fraction of price, declared at inception */
   minMarginPct?: number;
   /** declared at inception, so that stopping is a decision made before the sunk cost exists */
@@ -83,6 +85,8 @@ export interface LedgerObjective {
   selfReported: boolean;
   /** the tier that owns the number, so a reading can be checked for self-measurement */
   ownerTier?: string;
+  /** a second, independent expression for the same quantity. absence is a finding */
+  crosscheckSource?: string | null;
 }
 
 /** completed work, projected to the fields a gate reads */
@@ -173,6 +177,30 @@ function inception(project: Project, ctx: ProjectContext): Check[] {
   );
 
   const byRef = new Map(ctx.objectives.map((o) => [o.ref, o]));
+
+  // two objectives reading one expression is one number wearing ten hats
+  const sliceObjectives = project.slices
+    .map((s) => byRef.get(s.objectiveRef))
+    .filter((o): o is LedgerObjective => o !== undefined);
+  const shared = duplicateSources(
+    sliceObjectives.map((o) => ({ ref: o.ref, source: o.source, ownerTier: o.ownerTier ?? '' })),
+  );
+  checks.push(
+    shared.length === 0
+      ? pass('sources_distinct', { objectives: sliceObjectives.length })
+      : fail('sources_distinct', { shared: shared.map((d) => d.refs) }),
+  );
+
+  // a crosscheck is declared, not measured, at inception: the point of the gate is
+  // to refuse a plan that never intended to ask twice
+  const crosscheckFaults = sliceObjectives
+    .map((o) => ({ ref: o.ref, why: crosscheckFault(o) }))
+    .filter((o): o is { ref: string; why: string } => o.why !== undefined);
+  checks.push(
+    crosscheckFaults.length === 0
+      ? pass('objectives_corroborated', { objectives: sliceObjectives.length })
+      : fail('objectives_corroborated', { faults: crosscheckFaults }),
+  );
   const unresolved = project.slices
     .map((s) => s.objectiveRef)
     .filter((ref) => !byRef.has(ref));
@@ -227,13 +255,6 @@ function inception(project: Project, ctx: ProjectContext): Check[] {
     unverified.length === 0
       ? pass('metrics_verified', { readings: subjects.length })
       : fail('metrics_verified', { unverified }),
-  );
-
-  const shared = duplicateSources(subjects);
-  checks.push(
-    shared.length === 0
-      ? pass('sources_distinct', { count: subjects.length })
-      : fail('sources_distinct', { shared }),
   );
 
   return checks;
@@ -348,9 +369,27 @@ function operate(project: Project, ctx: ProjectContext): Check[] {
   ];
 }
 
-function review(_project: Project, ctx: ProjectContext): Check[] {
+function review(project: Project, ctx: ProjectContext): Check[] {
   const f = ctx.facts;
+  const byRef = new Map(ctx.objectives.map((o) => [o.ref, o]));
+  // a verdict needs a number two expressions agree on. one expression is a source
+  // of opinion, and the project is about to be closed or killed on it.
+  const disputed = project.slices
+    .map((s) => {
+      const o = byRef.get(s.objectiveRef);
+      if (!o) return { ref: s.objectiveRef, state: 'unverified', reason: 'objective_missing' };
+      const c = corroborate(o, ctx.readings ?? [], {
+        now: ctx.now,
+        tolerancePct: project.corroborationTolerancePct,
+      });
+      return { ref: s.objectiveRef, ...c };
+    })
+    .filter((c) => c.state !== 'agrees');
+
   return [
+    disputed.length === 0
+      ? pass('readings_agree', { objectives: project.slices.length })
+      : fail('readings_agree', { disputed }),
     f.auditAgrees === true
       ? pass('audit_agrees')
       : fail('audit_agrees', { got: f.auditAgrees ?? null }),

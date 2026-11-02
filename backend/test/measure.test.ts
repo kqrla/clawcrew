@@ -4,6 +4,8 @@ import {
   acceptReading,
   duplicateSources,
   parseSource,
+  corroborate,
+  crosscheckFault,
 } from '../src/domain/measure.js';
 
 const NOW = '2026-11-02T01:00:00.000Z';
@@ -138,5 +140,100 @@ describe('one gauge cannot be two metrics', () => {
       { ref: 'obj.b', source: 'sql:select 1', ownerTier: 't.b' },
     ]);
     expect(shared).toHaveLength(1);
+  });
+});
+
+describe('one number, two expressions', () => {
+  const at = (iso: string, runBy: string, source: string, value: number, role: 'primary' | 'crosscheck' = 'primary', ok = true) => ({
+    objectiveRef: 'obj.x',
+    objectiveVersion: 1,
+    source,
+    role,
+    value,
+    ok,
+    computedAt: iso,
+    runBy,
+  });
+
+  const subject = { ref: 'obj.x', source: 'sql:select count(*) from orders', crosscheckSource: 'run:orders report' };
+  const now = '2026-11-02T12:00:00.000Z';
+  const fresh = '2026-11-02T11:00:00.000Z';
+
+  it('agrees when two hands measure the same thing', () => {
+    const c = corroborate(subject, [
+      at(fresh, 'runner.gauges', subject.source, 100),
+      at(fresh, 'runner.audit', subject.crosscheckSource, 98, 'crosscheck'),
+    ], { now });
+    expect(c.state).toBe('agrees');
+    expect(c.spreadPct).toBeCloseTo(0.02, 5);
+  });
+
+  it('disagrees with both numbers, so a human can see which one is odd', () => {
+    const c = corroborate(subject, [
+      at(fresh, 'runner.gauges', subject.source, 1),
+      at(fresh, 'runner.audit', subject.crosscheckSource, 25, 'crosscheck'),
+    ], { now });
+    expect(c.state).toBe('disagrees');
+    expect(c).toMatchObject({ primary: 1, crosscheck: 25 });
+  });
+
+  it('treats two zeros as agreement and a zero against anything as disagreement', () => {
+    expect(corroborate(subject, [
+      at(fresh, 'a', subject.source, 0), at(fresh, 'b', subject.crosscheckSource, 0, 'crosscheck'),
+    ], { now }).state).toBe('agrees');
+
+    expect(corroborate(subject, [
+      at(fresh, 'a', subject.source, 0), at(fresh, 'b', subject.crosscheckSource, 4, 'crosscheck'),
+    ], { now }).state).toBe('disagrees');
+  });
+
+  it('refuses a crosscheck that is the primary expression reworded', () => {
+    const c = corroborate({ ...subject, crosscheckSource: '  SQL:select   count(*) from orders' }, [], { now });
+    expect(c.state).toBe('not_declared');
+    expect(c.reason).toBe('crosscheck_is_the_same_expression');
+  });
+
+  it('refuses two expressions run by the same hand', () => {
+    const c = corroborate(subject, [
+      at(fresh, 'runner.gauges', subject.source, 10),
+      at(fresh, 'runner.gauges', subject.crosscheckSource, 10, 'crosscheck'),
+    ], { now });
+    expect(c.state).toBe('unverified');
+    expect(c.reason).toBe('same_runner');
+  });
+
+  it('does not let a crosscheck reading stand in for a missing primary', () => {
+    const c = corroborate(subject, [at(fresh, 'b', subject.crosscheckSource, 10, 'crosscheck')], { now });
+    expect(c.state).toBe('unverified');
+    expect(c.reason).toBe('primary_never_run');
+  });
+
+  it('will not corroborate on month-old readings', () => {
+    const c = corroborate(subject, [
+      at('2026-10-01T00:00:00.000Z', 'a', subject.source, 10),
+      at('2026-10-01T00:00:00.000Z', 'b', subject.crosscheckSource, 10, 'crosscheck'),
+    ], { now });
+    expect(c.state).toBe('unverified');
+    expect(c.reason).toBe('reading_stale');
+  });
+
+  it('will not corroborate a failed run', () => {
+    const c = corroborate(subject, [
+      at(fresh, 'a', subject.source, 10),
+      at(fresh, 'b', subject.crosscheckSource, 0, 'crosscheck', false),
+    ], { now });
+    expect(c.state).toBe('unverified');
+    expect(c.reason).toBe('crosscheck_failed');
+  });
+
+  it('flags a plan that never intended to ask twice', () => {
+    expect(crosscheckFault({ source: subject.source })).toBe('not_declared');
+    expect(crosscheckFault({ source: subject.source, crosscheckSource: subject.source })).toBe(
+      'crosscheck_is_the_same_expression',
+    );
+    expect(crosscheckFault({ source: subject.source, crosscheckSource: 'the analytics team' })).toBe(
+      'crosscheck_not_executable',
+    );
+    expect(crosscheckFault(subject)).toBeUndefined();
   });
 });

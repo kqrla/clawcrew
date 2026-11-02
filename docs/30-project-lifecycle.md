@@ -56,6 +56,7 @@ legible to a human and actionable to a model.
 | `no_unit_cost_ceiling` | the project has no per-unit ceiling |
 | `price_not_above_ceiling` | the price is at or below the worst cost the project would accept |
 | `metrics_verified` | any slice objective has no accepted reading: never run, run by the owning tier, stale, or measured against a source that has since changed |
+| `objectives_corroborated` | a slice objective declares no second expression, declares the same one, or declares prose |
 | `sources_distinct` | two objectives read the same expression |
 
 the second row is the plug-and-play check from [29](29-slice-ontology.md) promoted to a gate: a
@@ -121,6 +122,7 @@ it.
 
 | condition | refuses when |
 | --- | --- |
+| `readings_agree` | any objective's primary and crosscheck are unverified or disagree beyond tolerance |
 | `audit_agrees` | the auditor's independent number does not match the primary one |
 | `verdict_reachable` | `metricMoved` is unknown |
 

@@ -32,17 +32,37 @@ const SLICES = ALL.map((o, i) => ({
   objectiveRef: `obj.meenible.${o.slice}`,
 }));
 
-/** a recorded run of each objective source, taken by a runner that is not the tier */
+/**
+ * a recorded run of each objective source, taken by a runner that is not the tier,
+ * plus the corroborating read from a different runner: two expressions, two hands.
+ */
 const readingsFor = (objectives: LedgerObjective[] = objectivesFor()) =>
-  objectives.map((o, i) => ({
-    objectiveRef: o.ref,
-    objectiveVersion: 1,
-    source: o.source,
-    value: i + 1,
-    ok: true,
-    computedAt: new Date(Date.parse(NOW) - 60_000).toISOString(),
-    runBy: 'runner.gauges',
-  }));
+  objectives.flatMap((o, i) => [
+    {
+      objectiveRef: o.ref,
+      objectiveVersion: 1,
+      source: o.source,
+      role: 'primary' as const,
+      value: i + 1,
+      ok: true,
+      computedAt: new Date(Date.parse(NOW) - 60_000).toISOString(),
+      runBy: 'runner.gauges',
+    },
+    ...(o.crosscheckSource
+      ? [
+          {
+            objectiveRef: o.ref,
+            objectiveVersion: 1,
+            source: o.crosscheckSource,
+            role: 'crosscheck' as const,
+            value: i + 1,
+            ok: true,
+            computedAt: new Date(Date.parse(NOW) - 60_000).toISOString(),
+            runBy: 'runner.audit',
+          },
+        ]
+      : []),
+  ]);
 
 const project = (over: Partial<Project> = {}): Project => ({
   id: 'meenible',
@@ -68,6 +88,8 @@ const objectivesFor = (slices = SLICES): LedgerObjective[] =>
     ref: s.objectiveRef,
     metric: `${s.slice} shipped units per week`,
     source: `sql:select count(*) from shipment where slice = '${s.slice}' and shipped_at > now() - interval '7 days'`,
+    // a second way to ask the same question, so the number has a witness
+    crosscheckSource: `run:shipments report --slice=${s.slice} --window=7d`,
     baseline: 0,
     target: 1,
     ownerTier: 't.test01',
@@ -113,8 +135,8 @@ describe('a project is startable or it is not', () => {
     const objs = objectivesFor();
     objs[0] = { ...objs[0]!, source: 'the fulfilment team' };
     const unmet = evaluate(project(), ctx({ objectives: objs })).filter((c) => !c.ok);
-    expect(unmet[0]!.id).toBe('objectives_externally_measured');
-    expect(unmet[0]!.detail.objectives).toEqual([
+    const measured = unmet.find((c) => c.id === 'objectives_externally_measured')!;
+    expect(measured.detail.objectives).toEqual([
       expect.objectContaining({ ref: objs[0]!.ref, runnable: false }),
     ]);
   });
@@ -133,8 +155,9 @@ describe('a project is startable or it is not', () => {
   it('refuses ten objectives that are one metric copied ten times', () => {
     const objs = objectivesFor().map((o) => ({ ...o, source: 'sql:select count(*) from orders' }));
     const unmet = evaluate(project(), ctx({ objectives: objs, readings: readingsFor(objs) })).filter((c) => !c.ok);
-    expect(unmet.map((c) => c.id)).toEqual(['sources_distinct']);
-    expect(unmet[0]!.detail.shared).toHaveLength(1);
+    expect(unmet.map((c) => c.id)).toContain('sources_distinct');
+    const dup = unmet.find((c) => c.id === 'sources_distinct')!;
+    expect(dup.detail.shared).toHaveLength(1);
   });
 
   it('refuses to start on a metric nobody has ever run', () => {
@@ -157,8 +180,8 @@ describe('a project is startable or it is not', () => {
     objs[1] = { ...objs[1]!, target: null };
     objs[2] = { ...objs[2]!, baseline: null };
     const unmet = evaluate(project(), ctx({ objectives: objs })).filter((c) => !c.ok);
-    expect(unmet[0]?.id).toBe('objectives_externally_measured');
-    expect(unmet[0]?.detail.objectives).toHaveLength(2);
+    const measured = unmet.find((c) => c.id === 'objectives_externally_measured')!;
+    expect(measured.detail.objectives).toHaveLength(2);
   });
 
   it('refuses a project whose next slice has no objective at all', () => {
@@ -359,7 +382,8 @@ describe('advancing', () => {
     const steps: string[] = [];
     const done = ALL.map((o) => ({ slice: o.slice, kind: o.kinds[0]!, evidenceRef: 'artifact://sha256/a' }));
 
-    p = advance(p, ctx()).ok ? (advance(p, ctx()) as { project: Project }).project : p;
+    const first = advance(p, ctx());
+    p = first.ok ? first.project : p;
     steps.push(p.phase);
     expect(p.phaseStartedAt).toBe(NOW);
 
@@ -375,10 +399,18 @@ describe('advancing', () => {
     p = (advance(p, ctx({ facts: { supportResolvedByOther: true, docsPageResolves: true, oncallLeaseHeld: true } })) as { project: Project }).project;
     steps.push(p.phase);
 
-    p = (advance(p, ctx({ now: plusDays(31), facts: { metricSamples: 31 } })) as { project: Project }).project;
+    // a month of operating: the gauges were read that day, not on day one, or the
+    // verdict would rest on numbers that describe a different month
+    const later = plusDays(31);
+    const fresh = readingsFor().map((r) => ({
+      ...r,
+      computedAt: new Date(Date.parse(later) - 3_600_000).toISOString(),
+    }));
+
+    p = (advance(p, ctx({ now: later, readings: fresh, facts: { metricSamples: 31 } })) as { project: Project }).project;
     steps.push(p.phase);
 
-    p = (advance(p, ctx({ now: plusDays(31), facts: { auditAgrees: true, metricMoved: true } })) as { project: Project }).project;
+    p = (advance(p, ctx({ now: later, readings: fresh, facts: { auditAgrees: true, metricMoved: true } })) as { project: Project }).project;
     steps.push(p.phase);
 
     expect(steps).toEqual(['build', 'assemble', 'launch', 'operate', 'review', 'closed']);
