@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "dev": "tsx src/server/dev.ts",
     "tick": "tsx src/cli/tick.ts",
-    "migrate": "psql \"$DATABASE_URL\" -f migrations/0001_init.sql"
+    "migrate": "tsx scripts/migrate.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.17",
