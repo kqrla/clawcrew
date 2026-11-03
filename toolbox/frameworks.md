@@ -47,49 +47,27 @@ defines a claim with provenance and a merge that must account for every claim it
 two seats talking across a boundary. the conservation rule is what stops the answer from being a
 summary of the answer.
 
-## elizaOS: the one that changes the answer at the edge
+## elizaOS: corrected
 
-`elizaos/eliza` is not LangChain with a different name. it is MIT-licensed TypeScript, it exports
-`AgentRuntime` from `@elizaos/core` with authorization, memory and plugin contracts as primitives,
-and it ships the thing this repo would otherwise spend a month failing to build: connectors. Discord,
-Slack, Telegram, X, an inbox, a browser, and a phone bridge, all as installable plugins behind one
-interface.
+the first version of this section argued for `elizaos/eliza` on its connectors: Discord, Slack,
+Telegram, X, an inbox, MIT licensed, one plugin interface, TypeScript. that argument was wrong, and
+the way it was wrong is worth keeping.
 
-run it through the four questions:
+**it invented demand.** no slice in this set declares a chat surface. the twelve surfaces are
+`design.asset`, `code.change`, `research.signal`, `security.control`, `payment.rail`, `media.asset`,
+`runtime.deploy`, `oncall.roster`, `ledger.record`, `support.inbox`, `doc.page`. a support seat
+reaches the world through `support.inbox` and nothing else; a design seat cannot post anywhere at
+all. so a plugin shelf of channels is not capability here, it is blast radius, and it would have
+arrived as a "nice to have" that no contract asked for.
 
-1. **task between processes** — its memory store, not our ledger. fails.
-2. **who may call what** — plugins register actions and their own authorization; grants would live in
-   a plugin config rather than in `toolbox/toolcalls.md`. fails as an engine.
-3. **mid-write failure** — its loop is message-and-evaluator, not transactional steps. fails.
-4. **unit of audit** — a runtime trace, readable by whoever runs the runtime. fails as the record.
+that is now a check rather than a lesson: see [`toolbox/index.json`](index.json) and
+`backend/src/domain/toolbox.ts`. a slice-held tool must name a surface that some slice provides, an
+engine-held tool must name none, an adopted tool must show something it produced in this repo, and a
+rejection must say why. an entry with no holder is one nobody may pick up, which is the only honest
+status for a dependency nobody needs yet.
 
-so it cannot be the substrate. but the same four answers say where it is *better* than anything we
-would write: a support slice needs a real inbox on a real platform, and the media slice needs a real
-distribution surface. those are connectors, and connectors are the one part of this stack that is
-pure commodity cost.
+elizaOS stays a candidate for one narrow reason, and it is not connectors: its claim-carrying. if a
+slice ever declares a chat surface, the question is whether a message survives the round trip with
+its evidence refs, author and disagreements intact. that test stands. the rest of its runtime is
+still refused on the four questions above, for the same reasons as LangChain.
 
-### the verdict: sidecar, not engine
-
-run elizaOS as a **separate process at the edge**, with a contract narrow enough that it could be
-replaced by a webhook in a week:
-
-- the factory sends it a message with our envelope (`discourse.ts` claims, provenance, dissent).
-- it posts, listens, and returns messages in the same envelope.
-- every action it may take is a grant issued by us, and it holds no grant we did not issue. its own
-  authorization layer is a second lock, never the only one.
-- nothing it knows becomes fact here without passing a gate. a chat message is a claim, not a metric.
-
-### what must be true before it may be adopted
-
-not a vibe check, a promotion test, in the order the toolbox rule requires:
-
-1. **licence and provenance recorded**, with the pinned version and its lockfile, in `oss.md`.
-2. **an envelope round-trip**: a claim sent survives the trip to Discord and back with its evidence
-   ref, author and `opposes` set intact. if it flattens to prose, it does not pass, and that is the
-   failure this layer exists to prevent.
-3. **a grant refusal**: with our grant removed, the sidecar must fail to act even though its own
-   config would allow it. if it acts, we are trusting their authorization and the test fails.
-4. **it ran once here** and produced an artifact in the repo, per the toolbox rule.
-
-until all four hold it stays in *candidates*, below, and the support and media slices stay blocked on
-connectors rather than pretending a webhook is an inbox.

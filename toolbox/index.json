@@ -1,0 +1,84 @@
+{
+  "note": "every entry is a permission, not a preference. a slice-held tool names the surface whose holder holds it; the engine holds infrastructure and never reach. validate against the live ontology with test/toolbox.test.ts",
+  "tools": [
+    {
+      "id": "postgres",
+      "status": "adopted",
+      "holder": "engine",
+      "licence": "PostgreSQL",
+      "evidence": "backend/migrations applied, 471 tests read from it",
+      "deterministic": true
+    },
+    {
+      "id": "node-vitest",
+      "status": "adopted",
+      "holder": "engine",
+      "licence": "MIT",
+      "evidence": "backend/test",
+      "deterministic": true
+    },
+    {
+      "id": "git",
+      "status": "adopted",
+      "holder": "engine",
+      "licence": "GPL-2.0",
+      "evidence": "every commit in this repo",
+      "deterministic": true
+    },
+    {
+      "id": "python3",
+      "status": "adopted",
+      "holder": "engine",
+      "licence": "PSF",
+      "evidence": "test-projects/meenible/harness/stlcheck.py, 27 tests",
+      "deterministic": true
+    },
+    {
+      "id": "stripe",
+      "status": "candidate",
+      "holder": "slice",
+      "surface": "payment.rail",
+      "licence": "proprietary-saas",
+      "why": "the gauge returns 401 without a key, so it has produced nothing here yet"
+    },
+    {
+      "id": "github-api",
+      "status": "candidate",
+      "holder": "slice",
+      "surface": "code.change",
+      "licence": "proprietary-saas",
+      "why": "one read succeeded, but the grant model has not been reviewed"
+    },
+    {
+      "id": "openscad",
+      "status": "candidate",
+      "holder": "slice",
+      "surface": "design.asset",
+      "licence": "GPL-2.0",
+      "deterministic": true,
+      "why": "the harness exists, the renderer has never run in this environment"
+    },
+    {
+      "id": "bambu-or-farm-api",
+      "status": "candidate",
+      "holder": "slice",
+      "surface": "support.inbox",
+      "licence": "unknown",
+      "why": "no quote has ever been requested; this is a slot for a fulfilment adapter, not an endorsement"
+    },
+    {
+      "id": "elizaos",
+      "status": "candidate",
+      "licence": "MIT",
+      "why": "carries claims intact or it does not get in; no slice declares a chat surface, so its connectors serve nothing here",
+      "surface": null
+    },
+    {
+      "id": "discord-plugin",
+      "status": "rejected",
+      "holder": "slice",
+      "licence": "MIT",
+      "why": "no slice provides a chat surface. a channel nobody's contract names is reach without a permission, which is the definition of blast radius"
+    }
+  ]
+}
