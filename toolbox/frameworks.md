@@ -71,3 +71,31 @@ slice ever declares a chat surface, the question is whether a message survives t
 its evidence refs, author and disagreements intact. that test stands. the rest of its runtime is
 still refused on the four questions above, for the same reasons as LangChain.
 
+
+## MAPLE: real, close, and double-licensed
+
+`maple-oss` on PyPI (v2.2.0, September 2026, MIT-adjacent framing in the readme but AGPL-3.0 with a
+commercial tier in the metadata) is the closest thing to this repo's thesis written by someone else:
+typed message, bounded tool, resource budget, durable checkpoint, explainable result. its organising
+line is the one worth stealing: *every outcome is legible — delivered, refused with a typed error, or
+counted as undeliverable. there is no fourth case where it simply vanishes.*
+
+two reasons not to embed it. the licence is network copyleft, and meenible is a closed SaaS, so using
+it means buying a commercial licence or opening the source, and neither is a decision an agent may
+make at 3am. and it is a Python runtime, so the ledger would be written by two processes in two
+languages with two notions of a transaction.
+
+the reason to keep reading it: it named a failure this repo had.
+
+```
+a message to a peer that never started. the send returns success.
+```
+
+before this page existed, an envelope addressed to a seat that was not there went into the queue,
+retried to exhaustion, and died as `max_attempts`, which is a legible lie: the problem was never the
+attempts. `checkAddressee` now refuses `addressee_unknown` and `addressee_frozen` at the door, so a
+message to a burned seat costs nothing and says why. four tests in `test/relay-queue.test.ts`.
+
+before anyone acts on the licence row, read `LICENSE` in the repo rather than the PyPI classifier.
+the metadata is contradictory and that is exactly the kind of thing that should be verified rather
+than believed.

@@ -151,6 +151,24 @@ export function checkRoute(
   return { ok: true };
 }
 
+/**
+ * docs/37. MAPLE's sharpest line is that "the send returned success" and "the peer
+ * never existed" must not be the same event. a message addressed to a seat that is
+ * not there used to sit in the queue and die of max_attempts, which is legible but
+ * says the wrong thing and costs the retry budget to learn.
+ */
+export type AddresseeCheck = { ok: true } | { ok: false; reason: 'addressee_unknown' | 'addressee_frozen' };
+
+export function checkAddressee(
+  m: Pick<RelayMessage, 'to'>,
+  seats: { id: string; state?: 'live' | 'frozen' | 'burned' }[],
+): AddresseeCheck {
+  const seat = seats.find((s) => s.id === m.to);
+  if (!seat) return { ok: false, reason: 'addressee_unknown' };
+  if (seat.state === 'frozen' || seat.state === 'burned') return { ok: false, reason: 'addressee_frozen' };
+  return { ok: true };
+}
+
 export function forward(m: RelayMessage, to: string, now: string): RelayMessage {
   const check = checkRoute({ from: m.from, to, path: m.path });
   if (!check.ok) throw new Error(check.reason);

@@ -79,6 +79,14 @@
       "holder": "slice",
       "licence": "MIT",
       "why": "no slice provides a chat surface. a channel nobody's contract names is reach without a permission, which is the definition of blast radius"
+    },
+    {
+      "id": "maple",
+      "status": "rejected",
+      "holder": null,
+      "surface": null,
+      "licence": "AGPL-3.0 / commercial dual",
+      "why": "AGPL network copyleft against a closed B2C SaaS, and a Python runtime duplicating a TS ledger. read the design, do not embed it. the one debt it identified is fixed in relay-queue.checkAddressee."
     }
   ]
 }

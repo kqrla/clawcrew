@@ -3,6 +3,7 @@ import {
   RelayMessage,
   ack,
   backoffMs,
+  checkAddressee,
   checkRoute,
   dead,
   expireIfPast,
@@ -136,5 +137,31 @@ describe('relay delivery', () => {
 
   it('dead carries a reason', () => {
     expect(dead(msg(), 'manual').deadReason).toBe('manual');
+  });
+});
+
+describe('a message cannot be addressed to nobody', () => {
+  const seats: { id: string; state?: 'live' | 'frozen' | 'burned' }[] = [
+    { id: 't.code', state: 'live' },
+    { id: 't.media', state: 'frozen' },
+    { id: 't.old', state: 'burned' },
+  ];
+
+  it('accepts a live seat', () => {
+    expect(checkAddressee({ to: 't.code' }, seats)).toEqual({ ok: true });
+  });
+
+  it('refuses a seat that does not exist, with a reason rather than a retry count', () => {
+    const check = checkAddressee({ to: 't.ghost' }, seats);
+    expect(check).toEqual({ ok: false, reason: 'addressee_unknown' });
+  });
+
+  it('refuses a frozen or burned seat at the door', () => {
+    expect(checkAddressee({ to: 't.media' }, seats)).toEqual({ ok: false, reason: 'addressee_frozen' });
+    expect(checkAddressee({ to: 't.old' }, seats)).toEqual({ ok: false, reason: 'addressee_frozen' });
+  });
+
+  it('does not need the seat list to be complete to be honest about a refusal', () => {
+    expect(checkAddressee({ to: 't.code' }, []).ok).toBe(false);
   });
 });
