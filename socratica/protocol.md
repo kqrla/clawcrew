@@ -1,81 +1,51 @@
 # socratica
 
-a standing arrangement for two or more seats with genuinely different interests to argue a decision
-from their own position, and produce a memo that the deciding tier reads before acting.
+a room where seats with genuinely different interests argue about **what work happens at all, and in
+what order**, before any of it starts. pre-build, not pre-merge.
 
-**status: not vetoable, and not binding.** a debate can inform a decision, sharpen it, or kill it by
-argument. it cannot block one, and it cannot make one. the difference matters, because a debate that
-could block would be a veto dressed as dialogue, and a debate that could decide would let the most
-articulate seat run the org.
+reconciling finished branches is a merge problem and the discourse layer already does it. the decision
+that matters more is upstream: ten things are worth doing, four seats disagree about which of them is
+first, and whichever gets picked determines what the next month is about. that is the question here,
+and it is asked before a task exists.
 
-## why this exists
+## the output is a queue, not a memo
 
-scope management is not drift. drift is a word for losing the plot. the actual daily question is
-where the next unit of effort goes:
+a decision that does not change what the scheduler picks up next is a memo, and memos are how a
+self-directed org spends a month looking busy.
 
-- **breadth**: another slice, another surface, another feature. the org looks bigger.
-- **depth**: the same surface, measurably better. the org looks the same and costs less.
-- **thin**: breadth without depth. the failure mode, and the one that looks like progress.
+so deliberation returns a plan with three buckets and a dispatch rule:
 
-those three trade against each other, and which one is right depends on who you ask. a design seat
-wants breadth because a catalog with three shirts is a catalog nobody returns to. a financials seat
-wants depth because every surface costs support and every surface dilutes the unit economics. an
-operations seat wants nothing new until the current thing stops paging. none of them is wrong, and a
-single-agent decision quietly picks whichever voice the prompt weighted last.
+| bucket | meaning | what gets it back |
+| --- | --- | --- |
+| `order` | dispatch order, highest argued score first, dependency-corrected | it happens |
+| `deferred` | alive and postponed | a stated falsifier firing |
+| `omitted` | not this month | nothing: it needs every voice to have said so |
 
-`socratica` exists so the disagreement is *recorded* rather than averaged: what each seat held, what
-would change its mind, and what survived.
+`dispatchNext(plan, done)` is what the scheduler asks. it returns the first ordered candidate whose
+dependencies are done. deferred and omitted tasks are simply not in that queue, which is how "not done
+at all" is expressed without anyone holding a veto.
 
-## the rules
+## the four rules that make it a decision instead of a conversation
 
-1. **every position states a falsifier**: the observation that would make its holder drop it. a
-   position with no falsifier is a preference and is labelled as one, not debated.
-2. **no rebuttal without a steelman**: a seat answering another seat must first state the strongest
-   version of what it is answering. this is the only rule that costs real work, and it is the one
-   that stops two monologues from being called a conversation.
-3. **no voting, no averaging.** a 2-1 split is not a conclusion. it is a split, and it goes in the
-   memo as one.
-4. **dissent is preserved verbatim** in the memo. the deciding tier reads the losing argument in the
-   words of the seat that made it, not paraphrased by the winner.
-5. **the memo has no authority field it can fill in.** it is advisory; the deciding tier's gate is the
-   only thing that acts.
-6. **a claim keeps its provenance** through the debate. a fact asserted in round one and rebutted in
-   round three is still a fact with a reference, or it is not a fact.
+1. **a postponement needs a falsifier.** "later" with no re-entry condition is a graveyard, and
+   `postponement_without_a_falsifier` is a fault, not a note.
+2. **omission needs unanimity among everyone who spoke.** one seat saying `never` produces a
+   deferral, never an omission. this is the difference between influence and a veto, and it is
+   enforced in code rather than promised in this document.
+3. **an order must be executable.** a candidate cannot be sequenced before something it waits on, and
+   a candidate whose dependency is postponed is postponed with it rather than silently dispatched into
+   a wall.
+4. **the argument carries provenance.** a stance with no claim is refused, and a claim of kind `fact`
+   with no reference is refused, which is the same rule as everywhere else in this repo.
 
-## what the memo contains
+## advisory, and that is not a demotion
 
-| field | why |
-| --- | --- |
-| question | one sentence, the decision actually being made |
-| positions | each seat, its stance, its claims, its falsifier |
-| steelmen | who answered whom, and the strongest version of the case they answered |
-| survived | the claims nobody rebutted with evidence |
-| split | the claims still contested, with both sides intact |
-| falsifiers | the test that would settle each surviving position, as a command where possible |
-| recommendation | optional, one seat's view, labelled as one seat's view |
-| authority | always `advisory` |
+`gateAccepts(plan)` returns `false` unconditionally. no plan moves a phase, because phases move on
+measurements. but a plan decides what gets measured next, and that is most of the power in a system
+whose bottleneck is attention rather than will.
 
-## what would make this theatre
-
-a debate whose memo nobody reads before the gate. so the wiring is: the deciding tier's decision
-record cites a memo id, and `socratica` is refused as an input to a gate. the gate reads evidence; the
-memo tells the seat which evidence to go and get. a memo that turns into a gate would be exactly the
-veto this document refuses.
-
-## the failure this is designed to catch
-
-a debate where every participant agrees. three seats agreeing in three different vocabularies is
-usually one seat's framing accepted by two others, and it is the least valuable memo the system can
-produce. `socratica` marks a unanimous debate as `unananimous_by_framing` unless at least one seat's
-claims carry distinct evidence references, because independent agreement is the only kind worth
-having.
-
-## where the decision goes after the memo
-
-the memo is an input to a *seat*, never to a gate. the seat reads it and then goes and gets the
-evidence the debate identified, and the gate evaluates that evidence. this is the same separation as
-`directive/` (beliefs) versus `backend/` (what is enforced): an argument can tell you what to measure,
-and only a measurement can move a phase.
+the two are not in conflict. the room cannot declare a metric true, and it also cannot be ignored,
+because it is the thing that fills the queue.
 
 ## what socratica is not
 
