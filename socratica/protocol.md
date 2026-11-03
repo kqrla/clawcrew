@@ -69,3 +69,18 @@ usually one seat's framing accepted by two others, and it is the least valuable 
 produce. `socratica` marks a unanimous debate as `unananimous_by_framing` unless at least one seat's
 claims carry distinct evidence references, because independent agreement is the only kind worth
 having.
+
+## where the decision goes after the memo
+
+the memo is an input to a *seat*, never to a gate. the seat reads it and then goes and gets the
+evidence the debate identified, and the gate evaluates that evidence. this is the same separation as
+`directive/` (beliefs) versus `backend/` (what is enforced): an argument can tell you what to measure,
+and only a measurement can move a phase.
+
+## what socratica is not
+
+- not a decision procedure. it does not pick.
+- not consensus machinery. a split is a recorded outcome, not a failure.
+- not a review. a review has authority, and this deliberately has none.
+- not a debate club. every position must cost its holder something if wrong, which is what the
+  falsifier field enforces.
