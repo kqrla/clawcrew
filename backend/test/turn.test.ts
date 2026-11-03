@@ -7,6 +7,7 @@ import { Proposal, TurnContext, auditProposal, runTurn } from '../src/domain/tur
  * a proposal is not a permission, and a prompt is not a policy.
  */
 const ctx = (over: Partial<TurnContext> = {}): TurnContext => ({
+  seat: 'seat.support',
   task: {
     id: 't.meenible.support.1',
     seat: 'seat.support',

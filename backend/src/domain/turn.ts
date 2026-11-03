@@ -50,6 +50,8 @@ export interface ToolBinding {
 
 export interface TurnContext {
   task: SeatTask;
+  /** whose turn it is. the grant says what they may do, this says who to blame */
+  seat: string;
   grant: GrantSet;
   bindings: ToolBinding[];
 }
@@ -114,6 +116,11 @@ export function auditProposal(p: Proposal, ctx: TurnContext): TurnFault[] {
 export interface TurnPorts {
   /** the model, or a fixture, or a person. the shape is the contract, not the vendor */
   propose(prompt: { task: SeatTask; tools: string[]; claims: Claim[] }): Promise<Proposal>;
+  /**
+   * docs/39. every refusal lands in the seat's record, because the strike limit is
+   * only a guardrail if something counts. optional so a fixture stays a fixture.
+   */
+  recordRefusal?(seat: string, codes: string[]): Promise<void>;
 }
 
 export interface TurnResult {
@@ -150,6 +157,7 @@ export async function runTurn(ctx: TurnContext, ports: TurnPorts, context: Claim
 
   const faults = auditProposal(proposal, ctx);
   if (faults.length) {
+    await ports.recordRefusal?.(ctx.seat, [...new Set(faults.map((f) => f.code))]);
     return {
       task: ctx.task.id,
       accepted: false,
