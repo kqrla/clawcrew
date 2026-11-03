@@ -1,38 +1,44 @@
 # scope-management
 
-a self-directed build drifts. not dramatically, and not from malice: it drifts one defensible
-decision at a time, each of which was locally reasonable. this folder is the machinery that notices
-before the drift becomes the product.
+not drift control. the daily question is where the next unit of effort goes, and there are exactly
+three answers.
 
-## the four mechanisms
-
-| mechanism | what it stops | where it lives |
+| move | looks like | costs |
 | --- | --- | --- |
-| a declared non-goal | the org inventing a second product to avoid shipping the first | `directive/refusals.md` |
-| kill criteria, written before the spend | sunk cost becoming a strategy | `src/domain/project.ts` (`kill_criteria_too_thin`) |
-| phase gates over rows | "we're basically done" | `docs/30` |
-| the metric that cannot be narrowed | improving the number by shrinking the offer | `scope-management/drift.md` |
+| **breadth** | another slice, room, feature, surface | support, catalog, surface area, dilution |
+| **depth** | the same surface, measurably better | nothing new to maintain, and no visible progress |
+| **thin** | breadth without depth | everything, and it reads as momentum |
 
-## the scope statement
+the failure is never "we went too deep". it is "we shipped a fourth room while the first three had no
+print-success data", and every seat in the org has a reason to prefer that: a design seat wants a
+catalog worth returning to, financials wants unit economics, operations wants nothing new until the
+paging stops, support wants fewer surfaces. all four are right, which is why the decision cannot be
+made by whichever seat is loudest or by whichever prompt weighted last.
 
-every project names, at inception and in one page:
+## the rule that keeps it honest
 
-1. **the one thing it sells.** one. a second product is a second project.
-2. **the non-goals.** what it explicitly will not do this month, with the reason.
-3. **the cheapest version that a stranger can pay for.** not the smallest, the cheapest that sells.
-4. **what would make it stop.** the kill criteria, which are gate conditions, not adjectives.
+**depth before breadth**: a slice may not add a surface until it holds at least one depth claim with
+an external metric. not a memo, not a plan: a number that moved, measured outside the seat that
+moved it ([31](../docs/31-measurement.md), [32](../docs/32-corroboration.md)).
 
-a project without those four does not pass `validateProject`, and that refusal is deliberate: the
-cheapest moment to decide what you are not building is before anybody has built anything.
+for meenible that means no fourth outfit room until the three that exist have print-success and
+unit-cost readings that a witness agrees with. the gate is deliberately annoying: breadth is the move
+that feels like progress, so it is the one that needs the most evidence.
 
-## how scope changes
+## how a decision actually gets made
 
-never by editing the statement. a change is a new version with a reason and a date, and the old one
-stays readable (`scope-management/change-control.md`). the org may change its mind; it may not
-change its memory.
+1. the seat that wants the move states it as a claim, with its falsifier
+   ([socratica](../socratica/protocol.md)).
+2. the seats whose numbers the move spends argue from their own position, and the disagreement is
+   recorded rather than averaged.
+3. the deciding tier reads the memo and then goes and gets evidence. the memo is advisory and cannot
+   be handed to a gate.
+4. if the move proceeds, it enters as a versioned objective with a metric and a target, and it can be
+   retired on evidence later without rewriting the ledger.
 
-## pages
+## the pages
 
-- [drift](drift.md): the named ways this build can wander, and the specific counter for each.
-- [change-control](change-control.md): how an objective or a boundary moves, versioned.
-- [budget](budget.md): the ceilings that make drift expensive before it is fatal.
+- [`strategy.md`](strategy.md) · the three moves, and the test for each
+- [`drift.md`](drift.md) · seven ways a self-directed org stops being the same org
+- [`change-control.md`](change-control.md) · how scope changes without rewriting history
+- [`budget.md`](budget.md) · what a healthy month costs, and what an unhealthy one looks like
