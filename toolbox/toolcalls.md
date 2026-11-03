@@ -26,3 +26,16 @@ absent is absent for a reason.
 new OAuth scopes, new recipients, new payment rails, new external accounts. each is a human act and
 each is recorded with who granted it. the org can build a great deal inside this boundary; what it
 cannot do is widen the boundary to fit an idea.
+
+## candidates: reachable, not yet trusted
+
+these appear in no grant, and an agent that calls them without a promotion is doing unrecorded work.
+the rule that gets one off this list is in [frameworks.md](frameworks.md#what-must-be-true-before-it-may-be-adopted):
+licence and pinned version recorded, the envelope round-trip proven, a grant refusal proven, and one
+artifact produced here.
+
+| candidate | why it is here | blocks |
+| --- | --- | --- |
+| elizaOS sidecar | connectors for the support and media slices that we would otherwise hand-roll | `support.inbox`, `media.studio` gauges |
+| print-house API | quotes and orders for meenible | `unit_cost_under_ceiling`, every order |
+| full-colour print bureau | the premium tier the collector price assumes | the $45 ceiling being realistic |
