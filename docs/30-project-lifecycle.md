@@ -123,7 +123,7 @@ it.
 | condition | refuses when |
 | --- | --- |
 | `readings_agree` | any objective's primary and crosscheck are unverified or disagree beyond tolerance |
-| `audit_agrees` | the auditor's independent number does not match the primary one |
+| `audit_alerts_clear` | the auditor's independent number does not match the primary one |
 | `verdict_reachable` | `metricMoved` is unknown |
 
 `metricMoved` is the last sample against the baseline declared at inception, beyond the noise

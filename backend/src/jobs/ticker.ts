@@ -19,6 +19,8 @@ export interface TickerPorts {
   /** live work rows: ready, leased and blocked. terminal rows are not swept. */
   loadWork?(limit?: number): Promise<WorkRow[]>;
   saveWork?(w: WorkRow): Promise<void>;
+  /** open auditor alerts. a disagreement nobody reads is the same as no disagreement */
+  countAuditAlerts?(): Promise<number>;
   /** alarms and violations, on the hash chain. transitions are not findings. */
   recordFindings?(findings: Action[], at: string): Promise<void>;
   heartbeat(h: { at: string; tickCount: number; lagMs: number }): Promise<void>;
@@ -59,6 +61,8 @@ export interface TickReport {
   workDeferred: number;
   /** rows that have now been skipped for long enough to alarm */
   workStarved: number;
+  /** auditor alerts still open. a disagreement nobody reads is no disagreement */
+  auditAlerts: number;
   lagMs: number;
 }
 
@@ -81,6 +85,7 @@ export async function runTick(ports: TickerPorts, opts: TickOptions): Promise<Ti
     workFindings: 0,
     workDeferred: 0,
     workStarved: 0,
+    auditAlerts: 0,
     lagMs: 0,
   };
 
@@ -229,6 +234,7 @@ export async function runTick(ports: TickerPorts, opts: TickOptions): Promise<Ti
     workBlocked,
     workFindings: findings.length,
     workDeferred,
+    auditAlerts: ports.countAuditAlerts ? await ports.countAuditAlerts() : 0,
     workStarved: findings.filter((f) => f.kind === 'alarm_starved').length,
     lagMs: lagMs(schedules, now),
   };

@@ -111,7 +111,8 @@ export interface ProjectFacts {
   harnessBlocked?: number;
   metricSamples?: number;
   /** the auditor's independent number agrees with the primary one */
-  auditAgrees?: boolean;
+  /** open auditor alerts for this project, counted from the findings table */
+  openAuditAlerts?: number;
   /** last sample against baseline, beyond the noise floor declared at inception */
   metricMoved?: boolean;
 }
@@ -390,9 +391,11 @@ function review(project: Project, ctx: ProjectContext): Check[] {
     disputed.length === 0
       ? pass('readings_agree', { objectives: project.slices.length })
       : fail('readings_agree', { disputed }),
-    f.auditAgrees === true
-      ? pass('audit_agrees')
-      : fail('audit_agrees', { got: f.auditAgrees ?? null }),
+    // a boolean a seat types in is the self-reporting problem wearing a hat. the
+    // count comes from findings the auditor wrote.
+    typeof f.openAuditAlerts === 'number' && f.openAuditAlerts === 0
+      ? pass('audit_alerts_clear')
+      : fail('audit_alerts_clear', { open: f.openAuditAlerts ?? 'unknown' }),
     typeof f.metricMoved === 'boolean'
       ? pass('verdict_reachable', { moved: f.metricMoved })
       : fail('verdict_reachable', { got: f.metricMoved ?? null }),

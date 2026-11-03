@@ -155,7 +155,7 @@ export function crosscheckFault(subject: {
   return undefined;
 }
 
-const sameExpression = (a: string, b: string): boolean =>
+export const sameExpression = (a: string, b: string): boolean =>
   a.trim().toLowerCase().replace(/\s+/g, ' ') === b.trim().toLowerCase().replace(/\s+/g, ' ');
 
 /**

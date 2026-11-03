@@ -355,23 +355,30 @@ describe('launch and operate', () => {
 describe('the review decides, and "continue" is not an option', () => {
   const inReview = project({ phase: 'review' });
 
-  it('will not rule without the auditor agreeing with the primary number', () => {
-    const unmet = evaluate(inReview, ctx({ facts: { auditAgrees: false, metricMoved: true } })).filter((c) => !c.ok);
-    expect(unmet.map((u) => u.id)).toEqual(['audit_agrees']);
+  it('will not rule while the auditor has an open alert', () => {
+    const unmet = evaluate(inReview, ctx({ facts: { openAuditAlerts: 2, metricMoved: true } })).filter((c) => !c.ok);
+    expect(unmet.map((u) => u.id)).toEqual(['audit_alerts_clear']);
+    expect(unmet[0]!.detail).toEqual({ open: 2 });
+  });
+
+  it('will not rule when nobody counted the alerts either', () => {
+    const unmet = evaluate(inReview, ctx({ facts: { metricMoved: true } })).filter((c) => !c.ok);
+    expect(unmet.map((u) => u.id)).toContain('audit_alerts_clear');
+    expect(unmet[0]!.detail).toEqual({ open: 'unknown' });
   });
 
   it('will not rule on a missing verdict', () => {
-    const unmet = evaluate(inReview, ctx({ facts: { auditAgrees: true } })).filter((c) => !c.ok);
+    const unmet = evaluate(inReview, ctx({ facts: { openAuditAlerts: 0 } })).filter((c) => !c.ok);
     expect(unmet.map((u) => u.id)).toEqual(['verdict_reachable']);
   });
 
   it('closes when the number moved beyond the noise floor', () => {
-    const r = advance(inReview, ctx({ facts: { auditAgrees: true, metricMoved: true } }));
+    const r = advance(inReview, ctx({ facts: { openAuditAlerts: 0, metricMoved: true } }));
     expect(r.ok && r.project.phase).toBe('closed');
   });
 
   it('kills when the number did not move', () => {
-    const r = advance(inReview, ctx({ facts: { auditAgrees: true, metricMoved: false } }));
+    const r = advance(inReview, ctx({ facts: { openAuditAlerts: 0, metricMoved: false } }));
     expect(r.ok && r.project.phase).toBe('killed');
   });
 });
@@ -410,7 +417,7 @@ describe('advancing', () => {
     p = (advance(p, ctx({ now: later, readings: fresh, facts: { metricSamples: 31 } })) as { project: Project }).project;
     steps.push(p.phase);
 
-    p = (advance(p, ctx({ now: later, readings: fresh, facts: { auditAgrees: true, metricMoved: true } })) as { project: Project }).project;
+    p = (advance(p, ctx({ now: later, readings: fresh, facts: { openAuditAlerts: 0, metricMoved: true } })) as { project: Project }).project;
     steps.push(p.phase);
 
     expect(steps).toEqual(['build', 'assemble', 'launch', 'operate', 'review', 'closed']);
