@@ -120,6 +120,18 @@ function main(): void {
     'create table if not exists schema_migration (filename text primary key, sha256 text not null, applied_at timestamptz not null default now())',
   );
 
+  cli(
+    'create table if not exists schema_migration_statement (filename text not null, idx int not null, sha256 text not null, applied_at timestamptz not null default now(), primary key (filename, idx))',
+  );
+
+  const statementLedger = new Map<string, string>();
+  for (const row of marked("coalesce(string_agg(filename || '#' || idx || '|' || sha256, ';'), '')", 'schema_migration_statement')
+    .split(';')
+    .filter(Boolean)) {
+    const [key, hash] = row.split('|');
+    if (key && hash) statementLedger.set(key, hash);
+  }
+
   const applied = new Map<string, string>();
   const ledger = marked("coalesce(string_agg(filename || '|' || sha256, ';'), '')", 'schema_migration');
   for (const row of ledger.split(';').filter(Boolean)) {
@@ -157,12 +169,32 @@ function main(): void {
     }
 
     const parts = statements(sql);
-    // the whole file in one call, so postgres treats it as one transaction: a file
-    // that fails halfway leaves nothing behind, which per-statement calls cannot
-    // promise and which is why the previous runner could stop at 19 of 26 and call
-    // the nineteen blind progress
-    cli(parts.join(';\n'));
-    console.log(`+ ${file}  applied (${parts.length} statements)`);
+
+    // the api refuses begin/rollback, so a file cannot be one transaction. what it
+    // can be is idempotent and resumable: every statement is recorded as it lands, so
+    // a failure names the line and a re-run continues from there instead of pretending
+    // the file never happened.
+    let done = 0;
+    parts.forEach((part, i) => {
+      const key = `${file}#${i + 1}`;
+      const already = statementLedger.get(key);
+      if (already === hash) {
+        done += 1;
+        return;
+      }
+      try {
+        cli(part);
+      } catch (err) {
+        const snippet = part.replace(/\s+/g, ' ').slice(0, 80);
+        throw new Refusal(
+          'statement_failed',
+          `${file} statement ${i + 1}/${parts.length}: ${snippet}\n  ${(err as Refusal).message.split('\n')[0]}\n  ${done} statements already recorded as applied`,
+        );
+      }
+      cli(`insert into schema_migration_statement (filename, idx, sha256) values ('${file}', ${i + 1}, '${hash}') on conflict (filename, idx) do nothing`);
+      done += 1;
+    });
+    console.log(`+ ${file}  applied (${parts.length} statements, ${done} now recorded)`);
     cli(
       `insert into schema_migration (filename, sha256) values ('${file}', '${hash}') on conflict (filename) do update set sha256 = '${hash}', applied_at = now()`,
     );

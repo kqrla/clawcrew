@@ -9,7 +9,7 @@ const at = '2026-11-03T13:00:00.000Z';
 const standing = (over: Partial<SeatStanding> = {}): SeatStanding => ({
   seat: 'seat.support',
   strikes: 0,
-  state: 'live',
+  state: 'active',
   ...over,
 });
 const reach: Verdict = { ok: false, code: 'tool_not_granted', escalate: true, fatal: true };
@@ -22,7 +22,7 @@ describe('a strike is a memory, not a mood', () => {
     const out = applyVerdict(standing(), reach, at);
     expect(out.froze).toBe(false);
     expect(out.standing.strikes).toBe(1);
-    expect(out.standing.state).toBe('live');
+    expect(out.standing.state).toBe('active');
     expect(out.standing.lastStrike).toMatchObject({ code: 'tool_not_granted', at });
   });
 
@@ -51,7 +51,7 @@ describe('a strike is a memory, not a mood', () => {
 
   it('clears only when a person has looked, and says so by resetting the count', () => {
     const cleared = clearStrikes(standing({ strikes: 2, state: 'frozen', lastStrike: { code: 'x', at } }));
-    expect(cleared).toEqual({ seat: 'seat.support', strikes: 0, state: 'live' });
+    expect(cleared).toEqual({ seat: 'seat.support', strikes: 0, state: 'active' });
   });
 
   it('never brings a burned seat back, because burn has no inverse', () => {

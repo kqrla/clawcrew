@@ -11,7 +11,7 @@ export const STRIKE_LIMIT = 2;
 export interface SeatStanding {
   seat: string;
   strikes: number;
-  state: 'live' | 'frozen' | 'burned';
+  state: 'active' | 'frozen' | 'burned';
   /** the last thing that earned a strike, for the person who has to unfreeze it */
   lastStrike?: { code: string; at: string; tool?: string };
 }
@@ -37,7 +37,7 @@ export function applyVerdict(standing: SeatStanding, verdict: Verdict, now: stri
     standing: {
       seat: standing.seat,
       strikes,
-      state: froze ? 'frozen' : 'live',
+      state: froze ? 'frozen' : 'active',
       lastStrike: { code: verdict.code ?? 'unknown', at: now, tool: String(verdict.detail?.tool ?? '') },
     },
     froze,
@@ -48,5 +48,5 @@ export function applyVerdict(standing: SeatStanding, verdict: Verdict, now: stri
 export function clearStrikes(standing: SeatStanding): SeatStanding {
   // burn has no inverse, so clearing is not a way back from it
   if (standing.state === 'burned') return standing;
-  return { seat: standing.seat, strikes: 0, state: 'live' };
+  return { seat: standing.seat, strikes: 0, state: 'active' };
 }
