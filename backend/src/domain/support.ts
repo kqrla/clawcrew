@@ -59,7 +59,11 @@ export function scriptedResponder(ticket: SupportTicket): Proposal {
 export function verifyReply(ticket: SupportTicket, stored: string): { ok: boolean; why?: string } {
   if (!stored.trim()) return { ok: false, why: 'empty_reply' };
   if (/TODO|lorem ipsum|\[insert/i.test(stored)) return { ok: false, why: 'placeholder_text' };
-  if (!stored.includes(ticket.id)) return { ok: false, why: 'reply_does_not_reference_ticket' };
+  // the rule was written for a template and it was wrong for a customer: a good reply cites
+  // the order the customer knows, not our internal ticket number. either identifies it.
+  const order = /order\s*#?\s*(\d{3,})/i.exec(`${ticket.subject} ${ticket.body}`);
+  const identifies = stored.includes(ticket.id) || (order ? stored.includes(order[1]!) : false);
+  if (!identifies) return { ok: false, why: 'reply_does_not_reference_ticket' };
   if (stored.length > 1200) return { ok: false, why: 'reply_too_long' };
   if (ticket.body.length > 0 && !/sorry|thanks|apolog/i.test(stored)) return { ok: false, why: 'reply_does_not_acknowledge' };
   return { ok: true };

@@ -43,7 +43,7 @@ const INSTRUCTIONS = [
   'every tool you are offered lists its arguments and the values those arguments accept. a call that omits one, or uses a value outside the list, is refused and costs the seat a strike.',
   'shape: {"outcome":"advance"|"block"|"refuse","reason":string,"reply":string,"tool":string,"args":object,"claims":[{"id":string,"kind":"fact"|"inference"|"preference"|"plan","statement":string,"evidence":string,"confidence":number,"by":string}]}',
   'you may only call the tools listed. a fact without an evidence reference is refused.',
-  'a stored reply is checked by a second seat: it must name the ticket id and address the specific problem raised, or it is not closed.',
+  'a stored reply is checked by a second seat: it must cite the ticket id or the customer order reference, and address the specific problem raised, or it is not closed.',
 ].join('\n');
 
 export function parseProposal(text: string): Proposal {
