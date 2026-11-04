@@ -89,7 +89,8 @@ treated as the binary name and fails with `fork/exec ... no such file or directo
 ## keeping state
 
 - **volume** for the repo, so a re-created session does not clone again.
-- **snapshot** for a prepared guest: dependencies installed, database client present, one command to run.
+- **snapshot** for a prepared guest: `tenki sandbox snapshot create --session <name> --name <snap>`
+  (note the `create` subcommand; `tenki sandbox snapshot --session ...` is not the syntax): dependencies installed, database client present, one command to run.
   A snapshot taken after a key was passed as `--env` contains that key.
 - **terminate** when done: `tenki sandbox terminate clawcrew-runner`. A paused sandbox still costs disk.
 
