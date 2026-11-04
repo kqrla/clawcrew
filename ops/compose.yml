@@ -1,0 +1,46 @@
+# everything here is yours: postgres, the runner, the health watcher. no vendor in the path.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: clawcrew
+      POSTGRES_USER: clawcrew
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set it}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clawcrew -d clawcrew"]
+      interval: 10s
+
+  migrate:
+    build: ../backend
+    command: ["npx", "tsx", "scripts/migrate.ts"]
+    environment:
+      DATABASE_URL: postgres://clawcrew:${POSTGRES_PASSWORD}@db:5432/clawcrew
+    depends_on:
+      db: { condition: service_healthy }
+
+  runner:
+    build: ../backend
+    command: ["npx", "tsx", "scripts/supervise.ts", "--every", "30000"]
+    environment:
+      DATABASE_URL: postgres://clawcrew:${POSTGRES_PASSWORD}@db:5432/clawcrew
+      MODEL_API_KEY: ${MODEL_API_KEY:?set it}
+      MODEL_NAME: ${MODEL_NAME:-gpt-5.4-mini}
+      MODEL_BASE_URL: ${MODEL_BASE_URL:-https://api.openai.com/v1}
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+  # the watcher is its own service on purpose: a supervisor cannot report its own death
+  health:
+    build: ../backend
+    command: ["sh", "-c", "while true; do npx tsx scripts/health.ts --max-age-ms 300000 || echo ALERT; sleep 60; done"]
+    environment:
+      DATABASE_URL: postgres://clawcrew:${POSTGRES_PASSWORD}@db:5432/clawcrew
+    depends_on:
+      runner: { condition: service_started }
+    restart: unless-stopped
+
+volumes:
+  pgdata:

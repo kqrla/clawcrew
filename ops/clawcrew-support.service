@@ -1,0 +1,18 @@
+# systemd alternative to compose, for a box that already runs postgres.
+[Unit]
+Description=clawcrew support loop (supervised)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/srv/clawcrew/backend
+EnvironmentFile=/etc/clawcrew/env
+ExecStart=/usr/bin/npx tsx scripts/supervise.ts --every 30000
+Restart=always
+RestartSec=10
+KillSignal=SIGTERM
+TimeoutStopSec=40
+
+[Install]
+WantedBy=multi-user.target

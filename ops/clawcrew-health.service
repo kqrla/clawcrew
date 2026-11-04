@@ -1,0 +1,8 @@
+[Unit]
+Description=clawcrew heartbeat check (the page)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/srv/clawcrew/backend
+EnvironmentFile=/etc/clawcrew/env
+ExecStart=/usr/bin/npx tsx scripts/health.ts --max-age-ms 300000

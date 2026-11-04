@@ -1,17 +1,57 @@
 /**
- * docs/41. the sandbox reaches the database over https only, so 5432 is not on offer
- * and the cli is the driver. results come back between markers because the cli draws
- * a box and reading a drawn table is how a migration once reported 90 tables.
+ * docs/44. self-hostable means the database is reachable over postgres, not over one
+ * vendor's https api. the interface stays synchronous because the domain is synchronous,
+ * so the driver is psql when DATABASE_URL is set and the cli otherwise.
  */
 import { execFileSync } from 'node:child_process';
 
+export interface Runner {
+  name: string;
+  run(statement: string): string;
+}
+
+export const cliRunner: Runner = {
+  name: 'insforge-cli',
+  run(statement) {
+    return execFileSync('npx', ['--yes', '@insforge/cli', 'db', 'query', statement], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 120_000,
+      cwd: process.cwd(),
+    });
+  },
+};
+
+export const psqlRunner: Runner = {
+  name: 'psql',
+  run(statement) {
+    // -A unaligned, -t tuples only, -q quiet: the marker in the statement does the framing
+    return execFileSync('psql', [process.env.DATABASE_URL!, '-A', '-t', '-q', '-v', 'ON_ERROR_STOP=1', '-c', statement], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 120_000,
+    });
+  },
+};
+
+/** one place decides which, and it says which, so a log can be read without guessing */
+export function chooseRunner(env: NodeJS.ProcessEnv): Runner {
+  return env.DATABASE_URL ? psqlRunner : cliRunner;
+}
+
+let active: Runner | null = null;
+
+function runner(): Runner {
+  active ??= chooseRunner(process.env);
+  return active;
+}
+
+export function setRunner(r: Runner): void {
+  active = r;
+}
+
 export function sql(statement: string): string {
-  return execFileSync('npx', ['--yes', '@insforge/cli', 'db', 'query', statement], {
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-    timeout: 120_000,
-    cwd: process.cwd(),
-  });
+  return runner().run(statement);
 }
 
 export function cell(expr: string, from = ''): string {
@@ -29,5 +69,6 @@ export function marked(statement: string): string {
   return m[1]!.trim();
 }
 
+/** one quoting helper, so a value is never interpolated raw into a statement */
 export const lit = (s: string | null | undefined): string =>
   s === null || s === undefined ? 'null' : `'${String(s).replace(/'/g, "''")}'`;

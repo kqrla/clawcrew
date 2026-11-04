@@ -1,0 +1,3 @@
+# the smallest possible supervision, for a box with cron and nothing else
+*/5 * * * * cd /srv/clawcrew/backend && . /etc/clawcrew/env && npx tsx scripts/health.ts --max-age-ms 300000 || logger -t clawcrew 'HEARTBEAT STALE'
+@reboot    cd /srv/clawcrew/backend && . /etc/clawcrew/env && npx tsx scripts/supervise.ts --every 30000
