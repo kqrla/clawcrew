@@ -27,10 +27,25 @@ export function responderFor(provider: ModelProvider) {
   return async (ticket: { id: string; subject: string; body: string }) => {
     if (provider.label.startsWith('scripted')) return scriptedResponder({ ...ticket } as never);
     const p = await provider.propose({
-      task: { id: ticket.id, body: `${ticket.subject}\n\n${ticket.body}` } as never,
-      tools: ['inbox.read', 'inbox.reply'],
+      // a seat that is handed a ticket but not told the job refuses the work, and it is
+      // right to: the first live run did exactly that and said so in its reason
+      task: {
+        id: ticket.id,
+        slice: 'support',
+        kind: 'support',
+        job: 'write the reply this customer should receive, then call inbox.reply with the recipient and put the words in reply',
+        subject: ticket.subject,
+        body: ticket.body,
+      } as never,
+      // the offer carries the argument domain, because a seat told only a tool name
+      // guesses, and a guess outside the grant costs it a strike
+      tools: [
+        { name: 'inbox.read', args: [{ name: 'inbox', type: 'string', allowed: ['inbox'] }] },
+        { name: 'inbox.reply', args: [{ name: 'recipient', type: 'string', allowed: ['inbox'] }] },
+      ],
       claims: [],
     });
+    if (process.env.ORCHART_DEBUG_PROPOSAL) console.error('proposal:', JSON.stringify(p).slice(0, 600));
     const call = p.calls[0];
     return {
       tool: call?.tool ?? '',

@@ -30,3 +30,25 @@ MODEL_API_KEY=... MODEL_BASE_URL=https://... MODEL_NAME=...  # anything openai-s
 
 with no key set, `fromEnv` returns `null` and the segment runs the scripted rule, labelled. it never
 guesses a provider and never quietly falls back without saying so.
+
+## the first live run, and the three things it caught
+
+model: `gpt-5.4-mini`, through the openai-compatible port. ticket `tkt.1005`, a cracked lid needed for
+a gift on saturday.
+
+1. **it refused, twice, and it was right.** the first two runs came back `arg_outside_scope` with
+   `recipient: null`. the offer had listed `inbox.reply` as a bare name, so the seat had no way to
+   know the tool takes a `recipient`, and no way to know the value must be `inbox`. a tool is now
+   offered with its arguments and their allowed values, because a seat told only a name guesses, and
+   a guess outside the grant costs it a strike.
+2. **it refused a third time, and that was right too.** handed an id and a body with no statement of
+   what the work was, it answered `block`: "no message content was provided to address ticket
+   tkt.1005". the task payload now says the job. a seat that refuses an under-specified task is
+   behaving correctly, and the fix belongs in the brief rather than in the prompt's sternness.
+3. **the duplicate bridge.** the runner script carried its own copy of the model bridge, so edits to
+   the real one changed nothing and the refusal looked like a model problem for three runs. there is
+   now one bridge, in `src/jobs/support.ts`, and the script calls it.
+
+the answer it wrote names the order, acknowledges the specific fault, and asks for a photograph, which
+the second seat accepted. the row says `openai:gpt-5.4-mini@api.openai.com`, and the two tickets
+answered before the key arrived still say `scripted:no-key`, because that is what wrote them.

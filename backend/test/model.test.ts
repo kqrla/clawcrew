@@ -45,7 +45,7 @@ afterAll(async () => {
   await new Promise<void>((r) => server.close(() => r()));
 });
 
-const prompt = { task: { id: 'tkt.1', slice: 'support', kind: 'support' }, tools: ['inbox.reply'], claims: [] };
+const prompt = { task: { id: 'tkt.1', slice: 'support', kind: 'support' }, tools: [{ name: 'inbox.reply', args: [{ name: 'recipient', type: 'string', allowed: ['inbox'] }] }], claims: [] };
 
 describe('a model answer becomes a proposal, or it becomes an error', () => {
   it('reads the call the model asked to make', async () => {
