@@ -47,3 +47,31 @@ tickets closed before the column existed have it empty, and that emptiness is al
 
 docs/42 is the port. swapping the template for a model is one environment variable, and nothing in the
 audit, the gateway, the checkpoints or the ledger changes when it happens.
+
+## the clock, the cap, and a kill
+
+`scripts/support-once.ts --every 2000 --cycles 2` is the night shift. one ticket per cycle, no state kept
+between cycles, so stopping it is safe at any instant.
+
+**money is decided before the model, not after the invoice.** the first version checked the cap after the
+proposal came back, which means a seat at its ceiling still bought one more call before being told no.
+the order is now standing, then money, then the model, and a test asserts the responder is never invoked
+at the cap. the ledger counts cents (`usd_cents` is the only metric the table accepts) and the domain
+counts dollars, so the conversion lives in one place in the store.
+
+**a claim is a lease, including against a kill.** a process killed between the claim and the reply left
+`tkt.1006` in `answered` with no reply, invisible to every later run: three runs saw `no_work` while a
+customer waited. the claim now stamps `claimed_at` and a stale claim comes back after ten minutes. the
+recovery is the row above: `tkt.1006` answered by `gpt-5.4-mini`, verified, objective back to `1.0`.
+
+```
+2026-11-04T13:42:21Z verified Hi, thanks for letting us know about ticket tkt.1006...
+2026-11-04T13:42:27Z no_work
+```
+
+**what is still not true.** the loop is a script with a flag, not a supervised service: nothing restarts
+it, and it is not in the ticker because the ticker needs a direct postgres connection and this sandbox
+reaches the database over https only. the per-call cost is a flat one-cent reservation, not measured
+tokens. and `tkt.1001` and `tkt.1002` carry no provider, because they were answered before the column
+existed. those nulls mean unknown provenance and are left as they are rather than backfilled with a
+reconstruction.

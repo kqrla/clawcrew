@@ -16,7 +16,7 @@ const ticket: SupportTicket = {
 };
 
 function memStore(over: { standing?: Partial<SeatStanding>; verify?: (t: SupportTicket, s: string) => boolean } = {}) {
-  const log = { replies: [] as string[], runs: [] as CheckpointRun[], refusals: [] as string[][], releases: [] as string[], froze: false, verified: false };
+  const log = { replies: [] as string[], runs: [] as CheckpointRun[], refusals: [] as string[][], releases: [] as string[], froze: false, verified: false, spent: 0, reserved: 0, settled: 0 };
   let standing: SeatStanding = { seat: 'seat.support', strikes: 0, state: 'active', ...over.standing };
   const store: SupportStore = {
     async claimOpenTicket() {
@@ -37,6 +37,17 @@ function memStore(over: { standing?: Partial<SeatStanding>; verify?: (t: Support
     async standing() {
       return standing;
     },
+    async spentToday() {
+      return log.spent;
+    },
+    async reserveSpend(_seat, usd) {
+      log.spent += usd;
+      log.reserved += 1;
+    },
+    async settleSpend() {
+      log.settled += 1;
+    },
+
     async recordRefusal(_seat, codes) {
       log.refusals.push(codes);
       standing = { ...standing, strikes: standing.strikes + 1 };
@@ -67,6 +78,24 @@ describe('one ticket, end to end', () => {
     expect(m.log.verified).toBe(true);
     // the second signature is not the author's
     expect(m.log.runs.map((r) => r.by)).toEqual(['seat.support', 'seat.support.qa']);
+  });
+
+  it('refuses at the cap before the model is called, and gives the ticket back', async () => {
+    const m = memStore();
+    m.log.spent = 1.995;
+    let asked = 0;
+    const out = await runTicket(
+      ctx({ spendPerCallUsd: 0.01 }),
+      m.store,
+      () => {
+        asked += 1;
+        return scriptedResponder(ticket);
+      },
+    );
+    expect(out.status).toBe('over_cap');
+    expect(asked).toBe(0); // nothing was bought, so nothing was spent
+    expect(m.log.releases).toContain('tkt.1');
+    expect(m.log.settled).toBe(0);
   });
 
   it('gives the ticket back when the responder throws', async () => {

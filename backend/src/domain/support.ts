@@ -28,6 +28,11 @@ export interface SupportStore {
   markVerified(ticketId: string, by: string, at: string): Promise<void>;
   standing(seat: string): Promise<SeatStanding>;
   recordRefusal(seat: string, codes: string[], at: string): Promise<void>;
+  /** money already committed today, read from the ledger rather than remembered */
+  spentToday(seat: string, dayStart: string): Promise<number>;
+  /** a reservation written before the model is called, so a cap can refuse first */
+  reserveSpend(seat: string, usd: number, ref: string, at: string): Promise<void>;
+  settleSpend(ref: string, usd: number, at: string): Promise<void>;
   freeze(seat: string, at: string): Promise<void>;
 }
 
@@ -76,6 +81,7 @@ export type TicketOutcome =
   | { status: 'refused'; verdict: Verdict; strikes: number; frozen: boolean }
   | { status: 'answered_unverified'; unmet: string[] }
   | { status: 'failed'; reason: string }
+  | { status: 'over_cap'; spentUsd: number; capUsd: number; reservedUsd: number }
   | { status: 'verified'; reply: string; checkpoints: string[] };
 
 export async function runTicket(
@@ -87,6 +93,26 @@ export async function runTicket(
   const ticket = await store.claimOpenTicket(ctx.seat, now);
   if (!ticket) return { status: 'no_work' };
 
+  // the order here is the whole point: standing, then money, then the model. a frozen
+  // seat and an exhausted cap must both be refused before anything is bought, which is
+  // what the first version of this function got wrong
+  const standing = await store.standing(ctx.seat);
+  if (standing.state !== 'active') {
+    await store.release(ticket.id, now);
+    const v: Verdict = { ok: false, code: 'struck_out', fatal: true, detail: { seat: ctx.seat } };
+    return { status: 'refused', verdict: v, strikes: standing.strikes, frozen: standing.state === 'frozen' };
+  }
+
+  const dayStart = `${now.slice(0, 10)}T00:00:00.000Z`;
+  const spentUsd = await store.spentToday(ctx.seat, dayStart);
+  const capUsd = ctx.grant.spendUsdPerDay ?? 0;
+  const reservedUsd = ctx.spendPerCallUsd ?? 0;
+  if (capUsd <= 0 || spentUsd + reservedUsd > capUsd) {
+    await store.release(ticket.id, now);
+    return { status: 'over_cap', spentUsd, capUsd, reservedUsd };
+  }
+  await store.reserveSpend(ctx.seat, reservedUsd, ticket.id, now);
+
   // found by running it with an expired key: a throw between the claim and the reply
   // left the ticket in answered-with-no-reply, which is the same leak the refusal path
   // had. the claim is a lease, so every exit without a reply gives it back.
@@ -95,16 +121,10 @@ export async function runTicket(
     proposal = await propose(ticket);
   } catch (err) {
     await store.release(ticket.id, now);
+    await store.settleSpend(ticket.id, 0, now);
     return { status: 'failed', reason: (err as Error).message };
   }
 
-  // the grant and the gateway decide before anything is written
-  const standing = await store.standing(ctx.seat);
-  if (standing.state !== 'active') {
-    await store.release(ticket.id, now);
-    const v: Verdict = { ok: false, code: 'struck_out', fatal: true, detail: { seat: ctx.seat } };
-    return { status: 'refused', verdict: v, strikes: standing.strikes, frozen: standing.state === 'frozen' };
-  }
   const verdict = judge(
     { tool: proposal.tool, args: proposal.args },
     REPLY_TOOL,
@@ -123,6 +143,7 @@ export async function runTicket(
     // found by running it: the claim moved the ticket to answered before the gateway
     // ever looked, so a refusal used to leave a customer stranded in answered-with-no-reply
     await store.release(ticket.id, now);
+    await store.settleSpend(ticket.id, 0, now);
     if (c.strike) await store.recordRefusal(ctx.seat, [verdict.code ?? 'unknown'], now);
     const after = applyVerdict(standing, verdict, now);
     if (after.froze) await store.freeze(ctx.seat, now);
@@ -130,6 +151,9 @@ export async function runTicket(
   }
 
   await store.saveReply(ticket.id, proposal.reply, ctx.seat, ctx.provider ?? 'unlabelled', now);
+  // the reservation becomes spend at the estimate, because that is the number the cap
+  // was checked against and a ledger that disagrees with itself is worse than a rough one
+  await store.settleSpend(ticket.id, reservedUsd, now);
 
   const runs: CheckpointRun[] = [
     { checkpoint: 'answered', passed: true, evidence: `ticket:${ticket.id}`, by: ctx.seat, at: now },
