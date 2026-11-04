@@ -4,6 +4,7 @@
  * so the driver is psql when DATABASE_URL is set and the cli otherwise.
  */
 import { execFileSync } from 'node:child_process';
+import { pgRunner } from './pg-runner.js';
 
 export interface Runner {
   name: string;
@@ -36,7 +37,9 @@ export const psqlRunner: Runner = {
 
 /** one place decides which, and it says which, so a log can be read without guessing */
 export function chooseRunner(env: NodeJS.ProcessEnv): Runner {
-  return env.DATABASE_URL ? psqlRunner : cliRunner;
+  // node-pg needs nothing installed; psql stays available for a box that has it
+  if (!env.DATABASE_URL) return cliRunner;
+  return env.CLAWCREW_DRIVER === 'psql' ? psqlRunner : pgRunner;
 }
 
 let active: Runner | null = null;

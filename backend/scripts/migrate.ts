@@ -11,9 +11,9 @@
  * database answered is a failed run.
  */
 import { createHash } from 'node:crypto';
-import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { cell, sql as sqlRun } from '../src/store/sql-cli.js';
 
 const ROOT = process.cwd();
 const MIGRATIONS = join(ROOT, 'migrations');
@@ -24,14 +24,14 @@ class Refusal extends Error {
   }
 }
 
+/**
+ * docs/45. this used to hold its own copy of the driver, so `DATABASE_URL` was honoured by
+ * the store and silently ignored by migrations: the run reported 18 applied against one
+ * database while patching another. the driver choice lives in one module, and this is it.
+ */
 function cli(sql: string): string {
   try {
-    return execFileSync('npx', ['--yes', '@insforge/cli', 'db', 'query', sql], {
-      cwd: ROOT,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: 120_000,
-    });
+    return sqlRun(sql);
   } catch (err) {
     const e = err as { stdout?: string; stderr?: string; status?: number };
     throw new Refusal(
@@ -52,7 +52,8 @@ function marked(expr: string, from = ''): string {
 function probe(): void {
   let out: string;
   try {
-    out = cli('select 1 as reachable');
+    // the probe must not depend on a driver drawing headers: the marker is the framing
+    out = cli("select '##' || 1 || '##' as k");
   } catch (err) {
     const message = (err as Refusal).message ?? String(err);
     if (/No project linked|not linked/i.test(message)) {
@@ -60,7 +61,7 @@ function probe(): void {
     }
     throw err;
   }
-  if (!/reachable/.test(out)) throw new Refusal('probe_silent', `probe returned no result: ${out.slice(0, 200)}`, 2);
+  if (!/##1##/.test(out)) throw new Refusal('probe_silent', `probe returned no result: ${out.slice(0, 200)}`, 2);
   if (/No project linked|not linked/i.test(out)) {
     throw new Refusal('not_linked', 'the cli is not linked to a project from this directory', 2);
   }
@@ -140,7 +141,10 @@ function main(): void {
   }
 
   const files = readdirSync(MIGRATIONS).filter((f) => f.endsWith('.sql')).sort();
-  if (applied.size === 0 && files.length > 0 && !baseline) {
+  // docs/45. "no rows" and "unreadable" looked identical, so a fresh database refused to
+  // migrate at all: `compose up` on an empty volume died here. prove which one it is.
+  const fresh = applied.size === 0 && cell("(select count(*) from information_schema.tables where table_schema = 'public' and table_name not like 'schema_migration%')") === '0';
+  if (applied.size === 0 && files.length > 0 && !baseline && !fresh) {
     // an empty ledger means either a fresh database or a failed read. those look
     // identical from here, and guessing wrong means re-running DDL over live tables
     throw new Refusal('ledger_unreadable', 'the migration ledger returned nothing; refusing to assume it is empty', 2);
