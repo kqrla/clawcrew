@@ -52,3 +52,19 @@ state=stopped age=2s cycles=23 stale=false
 Set `POSTGRES_PASSWORD`, `MODEL_API_KEY`, and take a backup. Everything else is `compose up`. Backups are
 the one thing that cannot be automated away: a postgres volume is a single point of loss, and an org that
 runs a month unattended will one day need Tuesday back.
+
+## where it runs, if not your box
+
+Tenki Cloud: a microVM per session, snapshots, volumes, and secret substitution so the model key is never
+inside the guest. The runbook with verified commands is `ops/tenki-sandbox.md`.
+
+Verified in a real session (Ubuntu 24.04, node v24): clone, `npm install`, and the whole suite green in
+5.6 seconds. Also verified, and more useful: the base image has **no psql and no root**, so the
+`DATABASE_URL` path needs an image that carries `postgresql-client` (the `backend/Dockerfile` builds one)
+or a snapshot of a prepared guest. Until then a sandbox runs the CLI driver over https, which is the
+sandbox-shaped path rather than the self-hosted one.
+
+I filed the Tenki key under search/crawl before this. That was wrong: it is compute. The correction is
+worth recording because the mistake was classification, not execution: I had a working key and a working
+CLI and spent a day proving the org could not be hosted anywhere while the hosting was one `curl | bash`
+away.
