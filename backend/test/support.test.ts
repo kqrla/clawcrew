@@ -69,6 +69,15 @@ describe('one ticket, end to end', () => {
     expect(m.log.runs.map((r) => r.by)).toEqual(['seat.support', 'seat.support.qa']);
   });
 
+  it('gives the ticket back when the responder throws', async () => {
+    const m = memStore();
+    const out = await runTicket(ctx(), m.store, () => {
+      throw new Error('insufficient_quota');
+    });
+    expect(out.status).toBe('failed');
+    expect(m.log.releases).toContain('tkt.1');
+  });
+
   it('does no work when the queue is empty, rather than inventing some', async () => {
     const m = memStore();
     await runTicket(ctx(), m.store, scriptedResponder);

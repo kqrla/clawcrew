@@ -75,6 +75,7 @@ export type TicketOutcome =
   | { status: 'no_work' }
   | { status: 'refused'; verdict: Verdict; strikes: number; frozen: boolean }
   | { status: 'answered_unverified'; unmet: string[] }
+  | { status: 'failed'; reason: string }
   | { status: 'verified'; reply: string; checkpoints: string[] };
 
 export async function runTicket(
@@ -86,7 +87,16 @@ export async function runTicket(
   const ticket = await store.claimOpenTicket(ctx.seat, now);
   if (!ticket) return { status: 'no_work' };
 
-  const proposal = await propose(ticket);
+  // found by running it with an expired key: a throw between the claim and the reply
+  // left the ticket in answered-with-no-reply, which is the same leak the refusal path
+  // had. the claim is a lease, so every exit without a reply gives it back.
+  let proposal;
+  try {
+    proposal = await propose(ticket);
+  } catch (err) {
+    await store.release(ticket.id, now);
+    return { status: 'failed', reason: (err as Error).message };
+  }
 
   // the grant and the gateway decide before anything is written
   const standing = await store.standing(ctx.seat);

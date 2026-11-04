@@ -25,7 +25,7 @@ export interface ModelProvider {
 
 export class ModelError extends Error {
   constructor(
-    readonly code: 'unreadable' | 'http' | 'timeout',
+    readonly code: 'unreadable' | 'http' | 'timeout' | 'incomplete_configuration',
     message: string,
   ) {
     super(message);
@@ -198,4 +198,34 @@ export function fromEnv(env: NodeJS.ProcessEnv): ModelProvider | null {
     });
   }
   return null;
+}
+
+/**
+ * half a configuration is worse than none, because it looks like a model and behaves
+ * like a template. anything set but unusable is a refusal, not a fallback.
+ */
+export function resolveProvider(env: NodeJS.ProcessEnv): ModelProvider {
+  const anthropicKey = env.ANTHROPIC_API_KEY;
+  const baseKey = env.MODEL_API_KEY;
+  if (anthropicKey && env.ANTHROPIC_MODEL) {
+    return anthropic({
+      apiKey: anthropicKey,
+      model: env.ANTHROPIC_MODEL,
+      baseUrl: env.ANTHROPIC_BASE_URL ?? 'https://api.anthropic.com/v1',
+    });
+  }
+  if (baseKey && env.MODEL_NAME) {
+    return openAICompatible({
+      apiKey: baseKey,
+      baseUrl: env.MODEL_BASE_URL ?? 'https://api.openai.com/v1',
+      model: env.MODEL_NAME,
+    });
+  }
+  if (anthropicKey || baseKey || env.MODEL_NAME || env.MODEL_BASE_URL) {
+    throw new ModelError(
+      'incomplete_configuration',
+      'a model credential is present but the model name is not; set ANTHROPIC_MODEL or MODEL_NAME',
+    );
+  }
+  return scripted();
 }
