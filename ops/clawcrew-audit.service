@@ -1,0 +1,8 @@
+[Unit]
+Description=clawcrew weekly audit (cross-check against primary data)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/srv/clawcrew/backend
+EnvironmentFile=/etc/clawcrew/env
+ExecStart=/usr/bin/npx tsx scripts/audit.ts --project meenible
