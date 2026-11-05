@@ -7,6 +7,9 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { cell, lit } from '../src/store/sql-cli.js';
 import { applyMove, loadBoard, undoLast } from '../src/store/org-board.js';
+import { COOKIE, guard, issueSession } from '../src/store/sessions.js';
+
+const PASSPHRASE = process.env.BOARD_PASSPHRASE ?? '';
 
 const PORT = Number(process.env.PORT ?? 8099);
 // the page lives at the repo root, and the server is started from backend/
@@ -37,20 +40,49 @@ createServer((req, res) => {
       );
       return json(res, 200, { rows: body });
     }
+    if (url.pathname === '/api/session' && req.method === 'POST') {
+      let raw = '';
+      req.on('data', (c) => (raw += c));
+      req.on('end', () => {
+        let body: any = {};
+        try { body = JSON.parse(raw); } catch { return json(res, 400, { ok: false, why: 'unreadable_body' }); }
+        if (!PASSPHRASE) return json(res, 503, { ok: false, why: 'no_passphrase_configured' });
+        if (String(body.passphrase ?? '') !== PASSPHRASE) return json(res, 401, { ok: false, why: 'wrong_passphrase' });
+        const actor = String(body.actor ?? 'human').slice(0, 80);
+        const token = issueSession(actor);
+        res.writeHead(200, {
+          'content-type': 'application/json',
+          'set-cookie': `${COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=43200`,
+        });
+        res.end(JSON.stringify({ ok: true, actor }));
+      });
+      return;
+    }
+    if (url.pathname === '/api/whoami') {
+      const g = guard(req.headers.cookie);
+      return json(res, 200, { ok: g.ok, actor: g.ok ? g.actor : null, why: g.ok ? undefined : g.why });
+    }
     if (url.pathname === '/api/move' && req.method === 'POST') {
       let raw = '';
       req.on('data', (c) => (raw += c));
       req.on('end', () => {
+        // the body's `actor` is ignored on purpose: it is a claim, and claims are not identity
+        const g = guard(req.headers.cookie);
+        if (!g.ok) return json(res, 401, { ok: false, why: g.why });
         try {
-          const { id, x, y, actor } = JSON.parse(raw);
-          json(res, 200, applyMove('org', String(id), Number(x), Number(y), String(actor ?? 'human:you')));
-        } catch (e) {
+          const { id, x, y } = JSON.parse(raw);
+          json(res, 200, applyMove('org', String(id), Number(x), Number(y), g.actor));
+        } catch {
           json(res, 400, { ok: false, why: 'unreadable_body' });
         }
       });
       return;
     }
-    if (url.pathname === '/api/undo' && req.method === 'POST') return json(res, 200, undoLast('org'));
+    if (url.pathname === '/api/undo' && req.method === 'POST') {
+      const g = guard(req.headers.cookie);
+      if (!g.ok) return json(res, 401, { ok: false, why: g.why });
+      return json(res, 200, undoLast('org'));
+    }
     json(res, 404, { ok: false, why: 'no_route' });
   } catch (e) {
     json(res, 500, { ok: false, why: String((e as Error).message).slice(0, 200) });

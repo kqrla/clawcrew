@@ -23,7 +23,7 @@
 </style>
 <div id="stage"></div>
 <aside>
-  <header><strong>clawbasecamp</strong><select id="room"><option value="a2a">inter-agent</option><option value="general">general</option></select><button id="undo">undo</button></header>
+  <header><input id="pass" type="password" placeholder="board passphrase" style="width:120px" /><span id="who" style="font-size:11px;opacity:.7"></span><strong>clawbasecamp</strong><select id="room"><option value="a2a">inter-agent</option><option value="general">general</option></select><button id="undo">undo</button></header>
   <div id="log"></div>
   <div id="hint">drag a box · the branch follows · drops snap to 20px · an invalid drop bounces with a reason</div>
 </aside>
@@ -74,6 +74,10 @@ stage.addEventListener('pointerup', async (e) => {
   await load();
 });
 document.getElementById('undo').onclick = async () => { await (await fetch('/api/undo', { method: 'POST' })).json(); await load(); };
+document.getElementById('pass').addEventListener('change', async (e) => {
+  const r = await (await fetch('/api/session', { method: 'POST', body: JSON.stringify({ passphrase: e.target.value, actor: 'human:you' }) })).json();
+  document.getElementById('who').textContent = r.ok ? r.actor : (r.why || 'no');
+});
 document.getElementById('room').onchange = (e) => messages(e.target.value);
 load(); messages('a2a');
 </script>

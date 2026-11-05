@@ -69,6 +69,34 @@ is not a delta: subtracting works until two ops overlap, and then it moves the w
 ## still not built
 
 nothing has been dragged by a mouse. the page was verified by curl and by reading the HTML, not in a
-browser, so the pointer handling and the 20px snap are reasoned rather than observed. `POST /api/move`
-takes any `actor`, which is fine on a laptop and is an authorization hole on a shared host: the actor
-should come from the session, not the body.
+browser, so the pointer handling and the 20px snap are reasoned rather than observed. `POST /api/move` used to take any `actor` from the body. fixed in the addendum below.
+
+
+## addendum: who is dragging
+
+A body field is a claim. `actor` came from the body, which meant anyone who could reach the port could move
+the org and sign it as you. Writes now take the actor from a session row:
+
+```
+POST /api/session  {"passphrase":"..."}      -> sets bc_session, HttpOnly, SameSite=Lax, 12h
+GET  /api/whoami                              -> the actor, or why not
+POST /api/move                                -> 401 without a session, actor from the row
+POST /api/undo                                -> 401 without a session
+```
+
+verified, with the body lying on purpose:
+
+```
+no cookie:      {"ok":false,"why":"no_session"}
+bad passphrase: {"ok":false,"why":"wrong_passphrase"}
+good passphrase:{"ok":true,"actor":"human:anne"}
+move with body claiming human:ceo  -> ok, and org_board_op.actor = human:anne
+```
+
+Two decisions worth naming. The passphrase is `BOARD_PASSPHRASE`, and with it unset the server answers
+`503 no_passphrase_configured` rather than quietly accepting writes, because a default credential is worse
+than a locked door. And `parseCookie` walks the header rather than matching a regex: a regex that matches the
+wrong pair is how a session becomes someone else's.
+
+Still not built: per-person accounts. One passphrase, one actor you name when you sign in, which is honest
+for a laptop and not enough for a team.
