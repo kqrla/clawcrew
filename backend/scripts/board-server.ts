@@ -3,13 +3,14 @@
  * than a table with coordinates. node:http and node-pg only: this runs on a box with node.
  */
 import { createServer } from 'node:http';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { cell, lit } from '../src/store/sql-cli.js';
 import { applyMove, loadBoard, undoLast } from '../src/store/org-board.js';
 
 const PORT = Number(process.env.PORT ?? 8099);
-const PAGE = join(process.cwd(), 'web', 'board.html');
+// the page lives at the repo root, and the server is started from backend/
+const PAGE = [join(process.cwd(), 'web', 'board.html'), join(process.cwd(), '..', 'web', 'board.html')].find((p) => existsSync(p)) ?? '';
 
 const json = (res: any, code: number, body: unknown): void => {
   res.writeHead(code, { 'content-type': 'application/json' });
