@@ -1,0 +1,79 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>clawcrew · board + clawbasecamp</title>
+<style>
+  :root { color-scheme: light dark; --line:#8883; }
+  body { margin:0; font:14px/1.4 system-ui, sans-serif; display:flex; height:100vh; }
+  #stage { flex:1; position:relative; overflow:hidden;
+    background-image:linear-gradient(var(--line) 1px, transparent 1px),linear-gradient(90deg,var(--line) 1px, transparent 1px);
+    background-size:20px 20px; }
+  .node { position:absolute; padding:8px 10px; border:1px solid #8888; border-radius:8px; background:Canvas;
+    cursor:grab; user-select:none; box-shadow:0 1px 2px #0002; font-size:12px; }
+  .node[data-kind=tier] { border-width:2px; font-weight:600; }
+  .node.dragging { cursor:grabbing; outline:2px solid Highlight; }
+  .node.refused { animation:shake .3s; border-color:#e5484d; }
+  @keyframes shake { 25%{transform:translateX(-4px)} 75%{transform:translateX(4px)} }
+  aside { width:320px; border-left:1px solid #8884; display:flex; flex-direction:column; }
+  aside header { padding:8px 10px; border-bottom:1px solid #8884; display:flex; gap:6px; align-items:center; }
+  #log { flex:1; overflow:auto; padding:8px 10px; font-size:12px; }
+  #log div { padding:4px 0; border-bottom:1px solid #8882; }
+  #log b { font-weight:600; }
+  button { font:inherit; padding:4px 8px; border-radius:6px; border:1px solid #8886; background:ButtonFace; cursor:pointer; }
+  #hint { padding:6px 10px; border-top:1px solid #8884; font-size:11px; opacity:.75; }
+</style>
+<div id="stage"></div>
+<aside>
+  <header><strong>clawbasecamp</strong><select id="room"><option value="a2a">inter-agent</option><option value="general">general</option></select><button id="undo">undo</button></header>
+  <div id="log"></div>
+  <div id="hint">drag a box · the branch follows · drops snap to 20px · an invalid drop bounces with a reason</div>
+</aside>
+<script>
+const stage = document.getElementById('stage');
+const log = document.getElementById('log');
+let board = null, drag = null;
+
+async function load() {
+  board = await (await fetch('/api/board')).json();
+  stage.innerHTML = '';
+  for (const n of board.nodes) {
+    const el = document.createElement('div');
+    el.className = 'node'; el.dataset.id = n.id; el.dataset.kind = n.kind;
+    el.textContent = n.label; el.style.left = n.x + 'px'; el.style.top = n.y + 'px';
+    stage.appendChild(el);
+  }
+}
+async function messages(room) {
+  const { rows } = await (await fetch('/api/messages?room=' + room)).json();
+  log.innerHTML = '';
+  for (const r of (rows ? rows.split('~') : [])) {
+    const [author, kind, body, env] = r.split('\u001f');
+    const d = document.createElement('div');
+    d.innerHTML = '<b>' + author + '</b> <span style="opacity:.6">' + kind + '</span><br>' + (env || body);
+    log.appendChild(d);
+  }
+}
+stage.addEventListener('pointerdown', (e) => {
+  const el = e.target.closest('.node'); if (!el) return;
+  const n = board.nodes.find((x) => x.id === el.dataset.id);
+  drag = { el, id: n.id, dx: e.clientX - n.x, dy: e.clientY - n.y };
+  el.classList.add('dragging'); el.setPointerCapture(e.pointerId);
+});
+stage.addEventListener('pointermove', (e) => {
+  if (!drag) return;
+  drag.el.style.left = (Math.round((e.clientX - drag.dx) / 20) * 20) + 'px';
+  drag.el.style.top = (Math.round((e.clientY - drag.dy) / 20) * 20) + 'px';
+});
+stage.addEventListener('pointerup', async (e) => {
+  if (!drag) return;
+  const { el, id } = drag; drag = null; el.classList.remove('dragging');
+  const x = Math.round((e.clientX - (el.dataset.dx || 0)) / 20) * 20;
+  const res = await (await fetch('/api/move', { method: 'POST', body: JSON.stringify({
+    id, x: Math.round(parseFloat(el.style.left)), y: Math.round(parseFloat(el.style.top)), actor: 'human:you' }) })).json();
+  if (!res.ok) { el.classList.add('refused'); setTimeout(() => el.classList.remove('refused'), 400);
+    console.warn('refused:', res.why); }
+  await load();
+});
+document.getElementById('undo').onclick = async () => { await (await fetch('/api/undo', { method: 'POST' })).json(); await load(); };
+document.getElementById('room').onchange = (e) => messages(e.target.value);
+load(); messages('a2a');
+</script>
