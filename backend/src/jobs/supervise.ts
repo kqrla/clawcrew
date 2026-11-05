@@ -47,3 +47,35 @@ export function decide(a: Attempt): Step {
   if (a.restarts >= a.maxRestarts) return { action: 'stop', reason: 'too_many_restarts', page: true };
   return { action: 'restart', delayMs: backoffMs(a.restarts) };
 }
+
+/**
+ * docs/46. the supervisor must own the cadence, not share it.
+ *
+ * a child started with `--every 30000` is itself a loop that never exits, so the supervisor
+ * waits forever on a child it will never see finish: no restarts, no logs, one heartbeat at
+ * startup, and a container that says "Up". the health watcher caught this; nothing else did.
+ * so `--every` belongs to the supervisor, and the child runs one pass at a time.
+ */
+export function planChild(argv: string[]): { childArgs: string[]; everyMs: number } {
+  const rest: string[] = [];
+  let everyMs = 0;
+  for (let i = 0; i < argv.length; i += 1) {
+    const a = argv[i]!;
+    if (a === '--every') {
+      everyMs = Number(argv[i + 1] ?? 0) || 0;
+      i += 1;
+      continue;
+    }
+    if (a.startsWith('--every=')) {
+      everyMs = Number(a.slice('--every='.length)) || 0;
+      continue;
+    }
+    if (a === '--cycles') {
+      i += 1; // a single pass is the whole point; the supervisor repeats it
+      continue;
+    }
+    if (a.startsWith('--cycles=')) continue;
+    rest.push(a);
+  }
+  return { childArgs: [...rest, '--cycles', '1'], everyMs };
+}

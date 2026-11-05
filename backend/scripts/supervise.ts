@@ -9,7 +9,7 @@
  * question about whether a terminal is still open.
  */
 import { spawnSync } from 'node:child_process';
-import { Attempt, backoffMs, decide } from '../src/jobs/supervise.js';
+import { Attempt, backoffMs, decide, planChild } from '../src/jobs/supervise.js';
 import { cell, sql } from '../src/store/sql-cli.js';
 
 const RUNNER = 'support-loop';
@@ -32,7 +32,7 @@ function sleep(ms: number): void {
 }
 
 function main(): void {
-  const passThrough = process.argv.slice(2);
+  const { childArgs, everyMs } = planChild(process.argv.slice(2));
   let restarts = 0;
   let crashes = 0;
   let failures = 0;
@@ -40,7 +40,7 @@ function main(): void {
   for (;;) {
     const started = Date.now();
     beat('running', `attempt ${restarts + 1}`);
-    const child = spawnSync('npx', ['tsx', 'scripts/support-once.ts', ...passThrough], { encoding: 'utf8' });
+    const child = spawnSync('npx', ['tsx', 'scripts/support-once.ts', ...childArgs], { encoding: 'utf8' });
     const ranForMs = Date.now() - started;
     if (child.stdout) process.stdout.write(child.stdout);
     if (child.stderr) process.stderr.write(child.stderr);
@@ -56,6 +56,12 @@ function main(): void {
       failures,
       maxFailures: MAX_FAILURES,
     };
+    // a clean pass with a cadence is a heartbeat, not an ending
+    if (child.status === 0 && everyMs > 0) {
+      beat('running', `cycle done, next in ${everyMs}ms`);
+      sleep(everyMs);
+      continue;
+    }
     const step = decide(attempt);
 
     if (step.action === 'run') {
