@@ -29,6 +29,15 @@ export function loadBoard(board = 'org'): Board {
   return { width: 2000, height: 1200, grid: 20, nodes };
 }
 
+function writePositions(moves: { id: string; x: number; y: number }[]): void {
+  sql(
+    `update org_node set x = v.x, y = v.y, updated_at = now()
+       from (values ${moves.map((m) => `(${lit(m.id)}, ${m.x}::numeric, ${m.y}::numeric)`).join(', ')})
+       as v(id, x, y)
+      where org_node.id = v.id`,
+  );
+}
+
 export type SaveResult = { ok: true; moved: { id: string; x: number; y: number }[] } | { ok: false; why: string };
 
 export function applyMove(boardId: string, nodeId: string, x: number, y: number, actor: string): SaveResult {
@@ -37,22 +46,23 @@ export function applyMove(boardId: string, nodeId: string, x: number, y: number,
   if (!result.ok) return result;
 
   const moved = result.moved;
+  const before = moved.map((m) => {
+    const n = board.nodes.find((b) => b.id === m.id)!;
+    return { id: m.id, x: n.x, y: n.y };
+  });
+  writePositions(moved);
   sql(
-    `update org_node set x = v.x, y = v.y, updated_at = now()
-       from (values ${moved.map((m) => `(${lit(m.id)}, ${m.x}::numeric, ${m.y}::numeric)`).join(', ')})
-       as v(id, x, y)
-      where org_node.id = v.id`,
-  );
-  sql(
-    `insert into org_board_op (board, node, actor, moved) values (${lit(boardId)}, ${lit(nodeId)}, ${lit(actor)}, ${lit(JSON.stringify(moved))}::jsonb)`,
+    `insert into org_board_op (board, node, actor, moved, before)
+     values (${lit(boardId)}, ${lit(nodeId)}, ${lit(actor)}, ${lit(JSON.stringify(moved))}::jsonb, ${lit(JSON.stringify(before))}::jsonb)`,
   );
   return { ok: true, moved };
 }
 
 /** the inverse of the last op, for an undo button that means it */
 export function undoLast(boardId = 'org'): SaveResult {
+  // a bare expression is not a statement: the select has to be a query the driver can run
   const op = marked(
-    `coalesce((select moved::text from org_board_op where board = ${lit(boardId)} order by id desc limit 1), '[]')`,
+    `select '##' || coalesce((select before::text from org_board_op where board = ${lit(boardId)} order by id desc limit 1), '[]') || '##' as k`,
   );
   const moved = JSON.parse(op) as { id: string; x: number; y: number }[];
   if (moved.length === 0) return { ok: false, why: 'nothing_to_undo' };
@@ -61,7 +71,11 @@ export function undoLast(boardId = 'org'): SaveResult {
     const n = current.get(m.id);
     if (!n) return { ok: false, why: 'op_refers_to_a_missing_node' };
   }
-  // undo is expressed as a normal move of the dragged node back to its previous position
-  const head = moved[0]!;
-  return applyMove(boardId, head.id, head.x, head.y, 'human:undo');
+  // put them back where they were, and record the undo as an op like any other gesture
+  writePositions(moved);
+  sql(
+    `insert into org_board_op (board, node, actor, moved, before)
+     values (${lit(boardId)}, ${lit(moved[0]!.id)}, 'human:undo', ${lit(JSON.stringify(moved))}::jsonb, ${lit(JSON.stringify(moved))}::jsonb)`,
+  );
+  return { ok: true, moved };
 }
