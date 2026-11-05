@@ -57,3 +57,44 @@ initdb -D data -U clawcrew --auth=trust        # as a non-root user
 pg_ctl -D data -o "-p 5433" start
 DATABASE_URL=postgres://clawcrew@127.0.0.1:5433/clawcrew npx tsx scripts/migrate.ts
 ```
+
+## fixed: the chain replays from zero
+
+```
+verified: 20 migrations known, 20 applied this run, 51 public tables present
+provider: openai:gpt-5.4-mini@api.openai.com
+{ "status": "verified", "checkpoints": ["answered", "closed"] }
+tickets: tkt.1001 verified | tkt.p1 verified
+objective: 1.00000000000000000000
+```
+
+Two new migrations, no edits to applied ones:
+
+- **`20261101000004a_meenible-tiers.sql`** seeds a tier for every tier an existing objective already
+  references. General on purpose: the next objective that names an unseeded tier is the same bug.
+- **`20261101000004b_figures-project.sql`** seeds `test-01.figures`, the project 000005 was written to
+  rename and then delete. Its slices are `code.repo, design.studio, research.analysis, security.controls,
+  financials.rails, media.studio, support.inbox, accounting.books, operations.runtime, documentation.site`.
+
+The second one is the real finding. The chain never only depended on ordering: it depended on a **project
+that was made by hand**. 000005 copies `test-01.figures` into `meenible` and then deletes the original, and
+on an empty volume there was nothing to copy, so meenible had no slices, the slice tiers could not be
+derived, and every slice objective pointed at a tier that could not exist. `project` and `project_slice`
+had zero rows in a database that had been migrated twenty times.
+
+## the rehash path, and why nothing needed it
+
+The ledger stores a hash per file and per statement, so editing an applied migration is detectable, and it
+is refused rather than re-run over live tables. That is the right default and it stays.
+
+The path for a genuine edit, when one is unavoidable:
+
+1. prefer a **new file with an earlier number** (as above). it applies anywhere, it is idempotent, and no
+   hash changes. `20261101000004a` sorts after `000004` and before `000005` for exactly this reason.
+2. if a file truly must change, it is a deliberate act with a record: bump the file, delete its
+   `schema_migration_statement` rows, and update its `schema_migration` hash **in the same commit** that
+   updates the file, with the reason in the commit message. There is no `--rehash` flag, and that is not an
+   oversight: a flag makes it a routine, and a routine makes an append-only ledger a suggestion.
+
+Nothing in this fix needed step 2. That was worth paying a day for, because the alternative was a
+self-hosted deploy that fails on the first empty volume every time.
