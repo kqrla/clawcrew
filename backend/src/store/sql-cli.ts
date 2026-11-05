@@ -6,6 +6,8 @@
 import { execFileSync } from 'node:child_process';
 import { pgRunner } from './pg-runner.js';
 
+export { pgRunner } from './pg-runner.js';
+
 export interface Runner {
   name: string;
   run(statement: string): string;
