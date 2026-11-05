@@ -98,3 +98,29 @@ The path for a genuine edit, when one is unavoidable:
 
 Nothing in this fix needed step 2. That was worth paying a day for, because the alternative was a
 self-hosted deploy that fails on the first empty volume every time.
+
+## checked against the version compose ships
+
+`postgres:16` is what `ops/compose.yml` pins, so a replay on a developer's newer server proves the wrong
+thing. Fetching 16.4 and doing it again, on an empty volume:
+
+```
+postgres (PostgreSQL) 16.4
+verified: 20 migrations known, 20 applied this run, 51 public tables present
+provider: openai:gpt-5.4-mini@api.openai.com
+"status": "verified", "checkpoints": ["answered", "closed"]
+objective: 1.00000000000000000000
+spend today: 1
+```
+
+then the supervisor and the heartbeat on the same database:
+
+```
+2026-11-05T08:07:46Z no_work
+[supervisor] stopped: finished
+state=stopped age=1s cycles=1 stale=false
+```
+
+So the packaged path is exercised end to end on the version it ships: migrate from nothing, one ticket
+answered and signed, spend recorded, supervisor exiting cleanly, heartbeat readable. What is *not* checked
+is a containerised run: no docker in this sandbox, so `docker compose up` itself has still never executed.
