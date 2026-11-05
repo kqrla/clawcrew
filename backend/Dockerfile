@@ -1,7 +1,7 @@
 # docs/44. one image that can talk to postgres over the wire, which is the difference
 # between hosting this and renting it.
 FROM node:20-slim
-RUN apt-get update && apt-get install -y --no-install-recommends postgresql-client ca-certificates
+# docs/45: no postgres client is needed. the driver is node-pg, so the image only needs node.
 WORKDIR /app
 COPY package*.json ./
 RUN npm install --omit=dev
