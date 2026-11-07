@@ -94,7 +94,9 @@ export function partsFor(spec: AvatarSpec): AvatarParts {
 
 /** body outlines in a 100x100 box, so every shape shares one face rig */
 function body(shape: ShapeName, fill: string, stroke: string): string {
-  const at = 'fill="' + fill + '" stroke="' + stroke + '" stroke-width="1.5"';
+  // plush, not outlined: the shape is a form under a light, and `stroke` only tints the
+  // small hard parts (antennae, hat brims) where a real toy has a seam
+  const at = 'fill="' + fill + '"';
   const poly = (pts: string): string => `<polygon points="${pts}" ${at} />`;
   const ring = (n: number, radius: number, cx = 50, cy = 54, phase = -90): string => {
     const pts: string[] = [];
@@ -141,41 +143,71 @@ function body(shape: ShapeName, fill: string, stroke: string): string {
 
 export function avatarSvg(spec: AvatarSpec): string {
   const p = partsFor(spec);
-  const fill = `hsl(${p.hue} 62% 66%)`;
-  const stroke = `hsl(${p.hue} 45% 38%)`;
-  const ink = p.hue > 40 && p.hue < 190 ? '#20222a' : '#1b1d24';
+  const fill = `url(#skin)`;
+  const stroke = `hsl(${p.hue} 42% 34%)`;
+  const ink = '#15171c';
   const l = 50 - p.eyeGap;
   const r = 50 + p.eyeGap;
-  const eye = (cx: number): string => `<ellipse cx="${cx}" cy="52" rx="${p.eyeSize}" ry="${p.eyeSize + 1}" fill="${ink}" />`;
+  // a bead eye: dark lens, one hard specular dot, one soft one, so it reads as glossy
+  const eye = (cx: number): string => `<g><ellipse cx="${cx}" cy="52" rx="${p.eyeSize}" ry="${p.eyeSize + 1.4}" fill="${ink}" /><ellipse cx="${cx - 1.2}" cy="49.4" rx="${(p.eyeSize / 3).toFixed(1)}" ry="${(p.eyeSize / 3).toFixed(1)}" fill="#fff" opacity=".92" /><ellipse cx="${cx + 1.4}" cy="55.4" rx="${(p.eyeSize / 4).toFixed(1)}" ry="${(p.eyeSize / 5).toFixed(1)}" fill="#fff" opacity=".35" /></g>`;
   const mouth = p.face === 'mouth'
-    ? `<path d="M40 66q10 8 20 0" fill="none" stroke="${ink}" stroke-width="3" stroke-linecap="round" />`
+    ? `<path d="M41 66q9 7 18 0" fill="none" stroke="${ink}" stroke-width="2.6" stroke-linecap="round" opacity=".85" />`
     : '';
   const blush = p.blush
-    ? `<ellipse cx="30" cy="62" rx="6" ry="4" fill="hsl(${p.hue} 70% 55%)" opacity="0.45" /><ellipse cx="70" cy="62" rx="6" ry="4" fill="hsl(${p.hue} 70% 55%)" opacity="0.45" />`
+    ? `<ellipse cx="31" cy="61" rx="7" ry="4.4" fill="hsl(${p.hue} 72% 58%)" opacity=".3" /><ellipse cx="69" cy="61" rx="7" ry="4.4" fill="hsl(${p.hue} 72% 58%)" opacity=".3" />`
     : '';
   const glasses = p.glasses === 'none' ? '' : p.glasses === 'shades'
-    ? `<rect x="${l - 8}" y="46" width="16" height="12" rx="3" fill="${ink}" /><rect x="${r - 8}" y="46" width="16" height="12" rx="3" fill="${ink}" /><rect x="${l + 8}" y="50" width="${p.eyeGap * 2 - 16}" height="3" fill="${ink}" />`
-    : `<circle cx="${l}" cy="52" r="9" fill="none" stroke="${ink}" stroke-width="2.5" /><circle cx="${r}" cy="52" r="9" fill="none" stroke="${ink}" stroke-width="2.5" />${p.glasses === 'square' ? `<rect x="${l - 9}" y="43" width="18" height="18" fill="none" stroke="${ink}" stroke-width="2.5" /><rect x="${r - 9}" y="43" width="18" height="18" fill="none" stroke="${ink}" stroke-width="2.5" />` : ''}`;
+    ? `<rect x="${l - 8}" y="46" width="16" height="11" rx="4" fill="${ink}" opacity=".9" /><rect x="${r - 8}" y="46" width="16" height="11" rx="4" fill="${ink}" opacity=".9" /><rect x="${l + 8}" y="50" width="${Math.max(2, p.eyeGap * 2 - 16)}" height="2.6" fill="${ink}" opacity=".9" />`
+    : `<circle cx="${l}" cy="52" r="9.4" fill="none" stroke="${ink}" stroke-width="2.2" opacity=".8" /><circle cx="${r}" cy="52" r="9.4" fill="none" stroke="${ink}" stroke-width="2.2" opacity=".8" />${p.glasses === 'square' ? `<rect x="${l - 9}" y="43" width="18" height="18" rx="3" fill="none" stroke="${ink}" stroke-width="2.2" opacity=".8" /><rect x="${r - 9}" y="43" width="18" height="18" rx="3" fill="none" stroke="${ink}" stroke-width="2.2" opacity=".8" />` : ''}`;
   const hat = p.hat === 'none' ? '' : p.hat === 'halo'
-    ? `<ellipse cx="50" cy="18" rx="22" ry="6" fill="none" stroke="hsl(48 90% 60%)" stroke-width="4" />`
+    ? `<ellipse cx="50" cy="16" rx="21" ry="5.5" fill="none" stroke="hsl(48 92% 62%)" stroke-width="3.4" opacity=".95" />`
     : p.hat === 'horns'
-    ? `<path d="M34 24q-6-14 4-18 6 8 6 16" fill="${stroke}" /><path d="M66 24q6-14-4-18-6 8-6 16" fill="${stroke}" />`
+    ? `<path d="M35 27q-7-15 3-19 6 8 7 15" fill="hsl(${(p.hue + 320) % 360} 45% 62%)" /><path d="M65 27q7-15-3-19-6 8-7 15" fill="hsl(${(p.hue + 320) % 360} 45% 62%)" />`
     : p.hat === 'party'
-    ? `<path d="M50 4l14 26H36z" fill="hsl(${(p.hue + 140) % 360} 75% 62%)" stroke="${stroke}" stroke-width="1.5" />`
+    ? `<path d="M50 6l13 24H37z" fill="hsl(${(p.hue + 150) % 360} 78% 64%)" /><circle cx="50" cy="6" r="3" fill="hsl(${(p.hue + 60) % 360} 85% 70%)" />`
     : p.hat === 'crown'
-    ? `<path d="M32 26l6-14 6 10 6-14 6 14 6-10 6 14z" fill="hsl(46 92% 62%)" stroke="${stroke}" stroke-width="1.5" />`
+    ? `<path d="M33 27l6-13 5.5 9 5.5-13 5.5 13 5.5-9 6 13z" fill="hsl(46 92% 63%)" />`
     : p.hat === 'beanie'
-    ? `<path d="M20 34a30 22 0 0 1 60 0z" fill="hsl(${(p.hue + 30) % 360} 55% 45%)" /><rect x="20" y="32" width="60" height="8" rx="4" fill="hsl(${(p.hue + 30) % 360} 45% 38%)" />`
-    : `<path d="M22 32q28-18 56 0-8-16-28-16T22 32z" fill="hsl(${(p.hue + 200) % 360} 55% 48%)" />`;
+    ? `<path d="M22 33a28 21 0 0 1 56 0z" fill="hsl(${(p.hue + 20) % 360} 58% 58%)" /><rect x="22" y="31" width="56" height="7" rx="3.5" fill="hsl(${(p.hue + 20) % 360} 44% 46%)" />`
+    : `<path d="M23 33q27-17 54 0-9-15-27-15T23 33z" fill="hsl(${(p.hue + 210) % 360} 52% 52%)" />`;
   const antenna = p.antenna === 'none' ? '' : p.antenna === 'stub'
-    ? `<rect x="47" y="6" width="6" height="14" rx="3" fill="${stroke}" />`
+    ? `<rect x="47.5" y="7" width="5" height="13" rx="2.5" fill="${stroke}" />`
     : p.antenna === 'loop'
-    ? `<path d="M50 18q0-14 10-12q8 2 0 10" fill="none" stroke="${stroke}" stroke-width="3" />`
-    : `<path d="M38 18q-4-12 6-12M62 18q4-12-6-12" fill="none" stroke="${stroke}" stroke-width="3" stroke-linecap="round" />`;
+    ? `<path d="M50 19q0-15 10-13 9 2 0 11" fill="none" stroke="${stroke}" stroke-width="2.8" stroke-linecap="round" />`
+    : `<path d="M39 19q-5-13 5-13M61 19q5-13-5-13" fill="none" stroke="${stroke}" stroke-width="2.8" stroke-linecap="round" />`;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" role="img" aria-label="${p.shape} agent avatar">
-<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="hsl(${p.hue} 70% 76%)" /><stop offset="1" stop-color="hsl(${p.hue} 55% 56%)" /></linearGradient></defs>
-<ellipse cx="50" cy="92" rx="26" ry="4" fill="rgba(0,0,0,.16)" />
-${antenna}${body(p.shape, 'url(#g)', stroke)}${blush}${eye(l)}${eye(r)}${glasses}${mouth}${hat}
+<defs>
+  <linearGradient id="skin" x1="0.25" y1="0" x2="0.75" y2="1">
+    <stop offset="0" stop-color="hsl(${p.hue} 74% 78%)" />
+    <stop offset="0.55" stop-color="hsl(${p.hue} 62% 64%)" />
+    <stop offset="1" stop-color="hsl(${p.hue} 52% 48%)" />
+  </linearGradient>
+  <radialGradient id="sheen" cx="0.34" cy="0.24" r="0.55">
+    <stop offset="0" stop-color="#fff" stop-opacity=".55" />
+    <stop offset="0.7" stop-color="#fff" stop-opacity="0" />
+  </radialGradient>
+  <radialGradient id="shade" cx="0.5" cy="0.5" r="0.62">
+    <stop offset="0.62" stop-color="#000" stop-opacity="0" />
+    <stop offset="1" stop-color="#000" stop-opacity=".28" />
+  </radialGradient>
+  <filter id="plush" x="-20%" y="-20%" width="140%" height="140%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.55" numOctaves="3" seed="${hash(p.shape + p.hue) % 90}" result="n" />
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="2.6" xChannelSelector="R" yChannelSelector="G" />
+    <feGaussianBlur stdDeviation="0.35" />
+  </filter>
+</defs>
+<style>@media (prefers-reduced-motion: no-preference){#face{animation:blink 5.2s infinite}@keyframes blink{0%,96%,100%{transform:scaleY(1)}98%{transform:scaleY(.12)}}}</style>
+<ellipse cx="50" cy="93" rx="25" ry="3.6" fill="#000" opacity=".16" />
+${antenna}
+<g filter="url(#plush)">
+  ${body(p.shape, fill, stroke)}
+  ${body(p.shape, 'url(#sheen)', 'none')}
+  ${body(p.shape, 'url(#shade)', 'none')}
+</g>
+<g id="face" style="transform-origin:50px 52px">
+  ${blush}${eye(l)}${eye(r)}${glasses}${mouth}
+</g>
+${hat}
 </svg>`;
 }
