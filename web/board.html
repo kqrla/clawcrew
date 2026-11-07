@@ -38,7 +38,7 @@ async function load() {
   for (const n of board.nodes) {
     const el = document.createElement('div');
     el.className = 'node'; el.dataset.id = n.id; el.dataset.kind = n.kind;
-    el.textContent = n.label; el.style.left = n.x + 'px'; el.style.top = n.y + 'px';
+    el.innerHTML = '<img alt="" width="26" height="26" style="vertical-align:-8px;margin-right:6px" src="/api/avatar?id=' + encodeURIComponent(n.id) + '">' + n.label; el.style.left = n.x + 'px'; el.style.top = n.y + 'px';
     stage.appendChild(el);
   }
 }

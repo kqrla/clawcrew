@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { cell, lit } from '../src/store/sql-cli.js';
 import { applyMove, loadBoard, undoLast } from '../src/store/org-board.js';
 import { COOKIE, guard, issueSession } from '../src/store/sessions.js';
+import { AvatarSpec, avatarSvg } from '../src/domain/avatar.js';
 
 const PASSPHRASE = process.env.BOARD_PASSPHRASE ?? '';
 
@@ -26,6 +27,19 @@ createServer((req, res) => {
     if (url.pathname === '/' || url.pathname === '/board') {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
       res.end(readFileSync(PAGE));
+      return;
+    }
+    if (url.pathname === '/api/avatar') {
+      // the seed is the node id, so a seat's face is stable across sessions and machines
+      const spec: AvatarSpec = { seed: url.searchParams.get('id') ?? 'unknown' };
+      const shape = url.searchParams.get('shape');
+      const hue = url.searchParams.get('hue');
+      const hat = url.searchParams.get('hat');
+      if (shape) spec.shape = shape as AvatarSpec['shape'];
+      if (hue) spec.hue = Number(hue);
+      if (hat) spec.hat = hat as AvatarSpec['hat'];
+      res.writeHead(200, { 'content-type': 'image/svg+xml', 'cache-control': 'public, max-age=3600' });
+      res.end(avatarSvg(spec));
       return;
     }
     if (url.pathname === '/api/board') return json(res, 200, loadBoard(url.searchParams.get('board') ?? 'org'));
