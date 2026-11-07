@@ -4,7 +4,7 @@ import { planChild } from '../src/jobs/supervise.js';
 /** docs/46. one pass per supervised run, and the supervisor keeps the clock. */
 describe('what the supervisor hands the child', () => {
   it('turns a requested cadence into the supervisor sleep', () => {
-    expect(planChild(['--every', '30000'])).toEqual({ childArgs: ['--cycles', '1'], everyMs: 30_000 });
+    expect(planChild(['--every', '30000'])).toEqual({ childArgs: ['--cycles', '1'], everyMs: 30_000, job: 'support' });
   });
 
   it('strips a cycles flag from the caller, because one pass is the unit', () => {
@@ -14,5 +14,6 @@ describe('what the supervisor hands the child', () => {
 
   it('keeps other arguments for the child', () => {
     expect(planChild(['--verbose', '--every', '2000']).childArgs).toEqual(['--verbose', '--cycles', '1']);
+    expect(planChild(['--job', 'work']).job).toBe('work');
   });
 });

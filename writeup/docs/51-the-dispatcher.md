@@ -40,11 +40,7 @@ Three corrections, all mine:
    `docs/31` already forbade a task with no deadline, and it refused my first insert. That constraint is
    why a leased task cannot be forgotten.
 
-## not built
+## since then
 
-The dispatch loop is not in the supervisor yet: `scripts/supervise.ts` still runs the support pass only, so
-this is a manual command. Wiring it is a small change to the child argument list, and it should come with the
-other half, which is *completion*: a leased task needs its evidence checked and its lease released, or the
-lease simply expires and the task is dispatched again to the same seat, forever. That loop of lease, work,
-evidence, release is the next real piece, and until it exists the dispatcher assigns but does not progress
-anything.
+Completion exists (`docs/52`), so this assigns and the work can now end. `supervise.ts --job work` supervises
+the combined settle-then-dispatch pass.

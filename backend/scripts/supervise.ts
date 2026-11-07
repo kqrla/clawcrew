@@ -32,7 +32,8 @@ function sleep(ms: number): void {
 }
 
 function main(): void {
-  const { childArgs, everyMs } = planChild(process.argv.slice(2));
+  const { childArgs, everyMs, job } = planChild(process.argv.slice(2));
+  const CHILD = job === 'work' ? 'scripts/work-once.ts' : 'scripts/support-once.ts';
   let restarts = 0;
   let crashes = 0;
   let failures = 0;
@@ -40,7 +41,7 @@ function main(): void {
   for (;;) {
     const started = Date.now();
     beat('running', `attempt ${restarts + 1}`);
-    const child = spawnSync('npx', ['tsx', 'scripts/support-once.ts', ...childArgs], { encoding: 'utf8' });
+    const child = spawnSync('npx', ['tsx', CHILD, ...childArgs], { encoding: 'utf8' });
     const ranForMs = Date.now() - started;
     if (child.stdout) process.stdout.write(child.stdout);
     if (child.stderr) process.stderr.write(child.stderr);

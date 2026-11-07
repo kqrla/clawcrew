@@ -56,9 +56,10 @@ export function decide(a: Attempt): Step {
  * startup, and a container that says "Up". the health watcher caught this; nothing else did.
  * so `--every` belongs to the supervisor, and the child runs one pass at a time.
  */
-export function planChild(argv: string[]): { childArgs: string[]; everyMs: number } {
+export function planChild(argv: string[]): { childArgs: string[]; everyMs: number; job: string } {
   const rest: string[] = [];
   let everyMs = 0;
+  let job = 'support';
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i]!;
     if (a === '--every') {
@@ -70,6 +71,11 @@ export function planChild(argv: string[]): { childArgs: string[]; everyMs: numbe
       everyMs = Number(a.slice('--every='.length)) || 0;
       continue;
     }
+    if (a === '--job') {
+      job = argv[i + 1] ?? 'support';
+      i += 1;
+      continue;
+    }
     if (a === '--cycles') {
       i += 1; // a single pass is the whole point; the supervisor repeats it
       continue;
@@ -77,5 +83,5 @@ export function planChild(argv: string[]): { childArgs: string[]; everyMs: numbe
     if (a.startsWith('--cycles=')) continue;
     rest.push(a);
   }
-  return { childArgs: [...rest, '--cycles', '1'], everyMs };
+  return { childArgs: [...rest, '--cycles', '1'], everyMs, job };
 }
