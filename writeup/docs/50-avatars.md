@@ -40,3 +40,19 @@ query. SVG rather than canvas because a log line, an email, and `<img>` with no 
 Their version animates states (working, sleeping) and simulates 3D on a canvas with a light rig. This has one
 blink and static shading. The gaps that matter: no `working`/`sleeping` states, no pointer-following gaze, and
 no UI beyond three query parameters.
+
+
+## addendum: use the package
+
+Not mine to remake. `npm i bot-avatars` (0.2.2, MIT-style public package, React ≥18 peer) and the board
+renders their canvas avatars: `web/avatars.tsx` mounts `<BotAvatar size={30} state=... interactive={false}>`
+into every node's `[data-bot]` holder, bundled with esbuild to `web/avatars.js` (280KB) and served by the
+board server. Seat nodes get `state="working"`, everything else `default`, so a seat looks busy on the board
+because it is.
+
+`type` is derived from the seat id by fnv-1a over their eighteen types, so a seat keeps its body across
+renders without a column and without a random re-roll on refresh.
+
+The procedural generator in `src/domain/avatar.ts` stays, demoted: it is the renderer for places a canvas
+cannot go, which is a log line, an email, or a `<img>` in a document. Two renderers, one rule: the seat's
+identity picks the body, so `seat.support` is recognisable in both.

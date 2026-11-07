@@ -29,6 +29,14 @@ createServer((req, res) => {
       res.end(readFileSync(PAGE));
       return;
     }
+    if (url.pathname === '/avatars.js') {
+      const bundle = [join(process.cwd(), '..', 'web', 'avatars.js'), join(process.cwd(), 'web', 'avatars.js')]
+        .find((f) => existsSync(f));
+      if (!bundle) return json(res, 404, { ok: false, why: 'bundle_missing_run_esbuild' });
+      res.writeHead(200, { 'content-type': 'text/javascript', 'cache-control': 'public, max-age=3600' });
+      res.end(readFileSync(bundle));
+      return;
+    }
     if (url.pathname === '/api/avatar') {
       // the seed is the node id, so a seat's face is stable across sessions and machines
       const spec: AvatarSpec = { seed: url.searchParams.get('id') ?? 'unknown' };

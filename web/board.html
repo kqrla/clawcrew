@@ -38,7 +38,7 @@ async function load() {
   for (const n of board.nodes) {
     const el = document.createElement('div');
     el.className = 'node'; el.dataset.id = n.id; el.dataset.kind = n.kind;
-    el.innerHTML = '<img alt="" width="26" height="26" style="vertical-align:-8px;margin-right:6px" src="/api/avatar?id=' + encodeURIComponent(n.id) + '">' + n.label; el.style.left = n.x + 'px'; el.style.top = n.y + 'px';
+    el.innerHTML = '<span data-bot="' + n.id + '" data-state="' + (n.kind === 'seat' ? 'working' : 'default') + '" style="display:inline-block;width:30px;height:30px;vertical-align:-10px;margin-right:6px"></span>' + n.label; el.style.left = n.x + 'px'; el.style.top = n.y + 'px';
     stage.appendChild(el);
   }
 }
@@ -79,5 +79,6 @@ document.getElementById('pass').addEventListener('change', async (e) => {
   document.getElementById('who').textContent = r.ok ? r.actor : (r.why || 'no');
 });
 document.getElementById('room').onchange = (e) => messages(e.target.value);
-load(); messages('a2a');
+load().then(() => { const s = document.createElement('script'); s.src = '/avatars.js'; document.body.appendChild(s); });
+messages('a2a');
 </script>
