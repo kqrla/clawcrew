@@ -33,7 +33,18 @@ function sleep(ms: number): void {
 
 function main(): void {
   const { childArgs, everyMs, job } = planChild(process.argv.slice(2));
-  const CHILD = job === 'work' ? 'scripts/work-once.ts' : 'scripts/support-once.ts';
+  // one supervisor per job, named on the command line: support (inbound), work (settle + dispatch),
+  // replenish (objective -> tasks). a job it does not know is refused rather than silently mapped
+  const JOBS: Record<string, string> = {
+    support: 'scripts/support-once.ts',
+    work: 'scripts/work-once.ts',
+    replenish: 'scripts/replenish-once.ts',
+  };
+  const CHILD = JOBS[job];
+  if (!CHILD) {
+    console.error(`[supervisor] unknown job "${job}", one of: ${Object.keys(JOBS).join(', ')}`);
+    process.exit(2);
+  }
   let restarts = 0;
   let crashes = 0;
   let failures = 0;

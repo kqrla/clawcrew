@@ -52,9 +52,6 @@ first two are in `docs/41`.
 `supervise.ts --job work --every 30000` supervises the loop above; the default remains `--job support`. One
 supervisor per job, because a crash in the dispatcher should not restart the support pass mid-ticket.
 
-## not built
+## since then
 
-Nothing dispatches a task for a *new objective*: candidates are tasks that already exist, and no code yet
-turns an objective into tasks when its evidence is behind. So the org can now finish what it is given,
-deterministically and without a person, but it cannot yet invent the next piece of work from a metric that
-is missing its target. That is the last organ of "self-directed", and it is the next one.
+Replenishment exists (`docs/53`): a lagging objective now creates the task, so the loop closes.
