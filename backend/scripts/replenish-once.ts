@@ -25,16 +25,17 @@ const legal = (candidates: string[], slice: string): string[] => {
 };
 
 const objectives: Objective[] = rows(
-  `select string_agg(id || '${F}' || version || '${F}' || coalesce(owner_tier, '') || '${F}' || coalesce(baseline, 0) || '${F}' ||
+  `select string_agg(o.id || '${F}' || version || '${F}' || coalesce(owner_tier, '') || '${F}' || coalesce(baseline, 0) || '${F}' ||
                      coalesce(target, 0) || '${F}' || coalesce(deadline::text, (now() + interval '30 days')::text) || '${F}' || coalesce(status, ''),
                      '~' order by id)
-     from objective where status = 'active'`,
+     from objective o where o.status = 'active'`,
 ).map((r) => {
-  const [id, version, ownerTier, baseline, target, deadline, status] = parts(r);
+  const [id, version, ownerTier, baseline, target, deadline, status, lineStatus] = parts(r);
   return {
     id: id!, version: Number(version ?? 1), ownerTier: ownerTier ?? '',
     baseline: Number(baseline ?? 0), target: Number(target ?? 0),
     deadline: new Date(deadline!), status: status ?? 'active',
+    lineStatus: (lineStatus as 'planned' | 'prototype' | 'live' | 'retired') ?? 'live',
     // kinds are scoped to the objective: its own evidence history, else its slice's. a global
     // list of kinds let a "support" task be created for the security objective, which is the
     // org pretending to work on something it has no way to measure
@@ -57,8 +58,8 @@ const measurements = rows(
 });
 
 const openTasks = rows(
-  `select string_agg(id || '${F}' || coalesce(objective_id, '') || '${F}' || coalesce(kind, '') || '${F}' || state, '~' order by id)
-     from task where state in ('ready','open','pending','leased','blocked')`,
+  `select string_agg(t.id || '${F}' || coalesce(t.objective_id, '') || '${F}' || coalesce(t.kind, '') || '${F}' || t.state, '~' order by t.id)
+     from task t where t.state in ('ready','open','pending','leased','blocked')`,
 ).map((r) => {
   const [id, objectiveId, kind, state] = parts(r);
   return { id: id!, objectiveId: objectiveId ?? '', kind: kind ?? '', state: state ?? '' };

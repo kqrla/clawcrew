@@ -16,6 +16,8 @@ export interface Objective {
   /** when this objective's period began: its first measurement, or the project's start. pace is
    *  meaningless without it, and measuring from the latest run makes every objective look ahead */
   observedSince?: Date;
+  /** the catalog line this objective belongs to; only a live or prototype line may be worked */
+  lineStatus?: 'planned' | 'prototype' | 'live' | 'retired';
   /** the task kinds this objective accepts, in the order they should be tried */
   kinds: string[];
 }
@@ -42,7 +44,7 @@ export interface Proposal {
 }
 export interface Refusal {
   objectiveId: string;
-  why: 'on_track' | 'already_queued' | 'wip_limit' | 'kind_unregistered' | 'no_deadline_left';
+  why: 'on_track' | 'already_queued' | 'wip_limit' | 'kind_unregistered' | 'no_deadline_left' | 'line_not_live';
 }
 
 export const WIP_LIMIT = 2;
@@ -56,10 +58,21 @@ const fraction = (v: number, from: number, to: number): number => {
   return Math.max(0, Math.min(1, f));
 };
 
-export function sliceOf(objective: Objective): string {
-  // obj.meenible.support.inbox -> support. the objective naming convention carries the slice
-  const parts = objective.id.split('.');
-  return parts.length >= 3 ? parts[2]! : 'general';
+/** the ten kinds of work this org does, mirroring the task_kind_known constraint */
+export const KNOWN_KINDS = [
+  'code', 'design', 'research', 'security', 'financial',
+  'media', 'ops', 'accounting', 'support', 'doc',
+] as const;
+
+/**
+ * obj.trinketeer.meeniable.code.repo -> code.
+ *
+ * found by looking for a legal kind rather than by counting segments: the id grew a product line
+ * (obj.meenible.code.repo -> obj.trinketeer.meeniable.code.repo) and a positional rule silently
+ * started reading "meeniable" as the slice, which turned every objective into kind_unregistered.
+ */
+export function sliceOf(objective: Objective, registry: readonly string[] = KNOWN_KINDS): string {
+  return objective.id.split('.').find((seg) => registry.includes(seg)) ?? 'general';
 }
 
 export function replenish(input: {
@@ -75,6 +88,12 @@ export function replenish(input: {
 
   for (const o of input.objectives) {
     if (o.status !== 'active') continue;
+    // scope control: a line that is planned or retired gets no tasks, however behind its metric
+    // looks. inventing work for an unlaunched product is the most expensive kind of busy
+    if (o.lineStatus === 'planned' || o.lineStatus === 'retired') {
+      refusals.push({ objectiveId: o.id, why: 'line_not_live' });
+      continue;
+    }
     if (o.kinds.length === 0) {
       refusals.push({ objectiveId: o.id, why: 'kind_unregistered' });
       continue;

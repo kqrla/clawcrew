@@ -7,6 +7,7 @@
 import { lit, marked, sql } from '../src/store/sql-cli.js';
 import { nextAssignment } from '../src/jobs/dispatch.js';
 import { Evidence, Lease, judge } from '../src/jobs/complete.js';
+import { Rule, checkEvidence } from '../src/jobs/acceptance.js';
 
 const F = '\u001f';
 /** takes a whole select that yields one row of 'a~b~c', so every caller states its FROM */
@@ -26,6 +27,21 @@ const leaseSql = `
 
 const liveRows = rows(leaseSql.replace(/\n/g, ' '));
 
+/** docs/55: the rules of acceptance, read from the table so a policy change is a migration */
+const rules = new Map<string, Rule>(
+  rows(
+    `select string_agg(kind || '${F}' || source_pattern || '${F}' || min_count || '${F}' || max_age_hours || '${F}' || needs_second_seat, '~' order by kind)
+       from evidence_rule`,
+  ).map((r) => {
+    const [kind, sourcePattern, minCount, maxAgeHours, second] = parts(r);
+    return [kind!, {
+      kind: kind!, requires: '', sourcePattern: sourcePattern!,
+      minCount: Number(minCount ?? 1), maxAgeHours: Number(maxAgeHours ?? 72),
+      needsSecondSeat: second === 't' || second === 'true',
+    }];
+  }),
+);
+
 let completed = 0;
 let requeued = 0;
 let escalated = 0;
@@ -39,14 +55,19 @@ for (const r of liveRows) {
     attempts: Number(attempts ?? 0), maxAttempts: Number(maxAttempts ?? 3),
   };
   const evidence: Evidence[] = rows(
-    `select string_agg(objective || '${F}' || kind || '${F}' || computed_at::text || '${F}' || coalesce(run_by, ''), '~' order by computed_at desc)
+    `select string_agg(objective || '${F}' || kind || '${F}' || computed_at::text || '${F}' || coalesce(run_by, '') || '${F}' || coalesce(source, ''), '~' order by computed_at desc)
        from evidence where objective = ${lit(lease.objectiveId)}`,
   ).map((r) => {
-    const [objectiveId, kind, computedAt, runBy] = parts(r);
-    return { objectiveId: objectiveId!, kind: kind!, computedAt: iso(computedAt!), runBy: runBy ?? '' };
+    const [objectiveId, kind, computedAt, runBy, source] = parts(r);
+    return { objectiveId: objectiveId!, kind: kind!, computedAt: iso(computedAt!), runBy: runBy ?? '', source: source ?? '' };
   });
 
-  const outcome = judge(lease, evidence, new Date());
+  const verdict = checkEvidence(
+    rules.get(lease.kind),
+    evidence.map((e) => ({ kind: e.kind, source: e.source ?? '', runBy: e.runBy, computedAt: e.computedAt })),
+    new Date(),
+  );
+  const outcome = judge(lease, evidence, new Date(), verdict as { ok: true } | { ok: false; why: string });
   if (outcome.action === 'hold') { held += 1; continue; }
 
   if (outcome.action === 'complete') {
@@ -70,7 +91,7 @@ for (const r of liveRows) {
   sql(`update task set attempts = coalesce(attempts, 0) + 1, next_action_at = now() + interval '${Math.round(outcome.backoffMs / 1000)} seconds' where id = ${lit(lease.taskId)}`);
   sql(`update seat_lease set released_at = now() where task_id = ${lit(lease.taskId)} and released_at is null`);
   requeued += 1;
-  console.log(`work: ${lease.taskId} requeued (${outcome.why}) attempt ${lease.attempts + 1}/${lease.maxAttempts}`);
+  console.log(`work: ${lease.taskId} requeued (${outcome.why}${'detail' in outcome && outcome.detail ? `: ${outcome.detail}` : ''}) attempt ${lease.attempts + 1}/${lease.maxAttempts}`);
 }
 
 // ---- then dispatch ----

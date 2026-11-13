@@ -60,6 +60,15 @@ describe('replenish', () => {
     expect(none.refusals[0]!.why).toBe('kind_unregistered');
   });
 
+  it('refuses a planned line, however far behind its metric', () => {
+    const r = replenish({
+      objectives: [obj({ lineStatus: 'planned' })], openTasks: [], now,
+      measurements: [{ objectiveId: 'obj.meenible.support.inbox', value: 0, computedAt: new Date('2026-11-01T00:00:00Z') }],
+    });
+    expect(r.proposals).toHaveLength(0);
+    expect(r.refusals[0]!.why).toBe('line_not_live');
+  });
+
   it('orders proposals by how far behind they are', () => {
     const r = replenish({
       objectives: [obj({ id: 'obj.meenible.support.inbox' }), obj({ id: 'obj.meenible.code.repo', ownerTier: 't.test01.code' })],
