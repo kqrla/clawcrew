@@ -58,8 +58,13 @@ for (const { task, seat } of leased) {
   // the suite is the ci half, and it is run here so the number is computed, never reported
   if (p.sha) {
     try {
+      // the suite lives where its config lives: a monorepo's root has no vitest config, and
+      // running there fails for a reason that has nothing to do with the change being proved
+      const suiteRoot = existsSync(join(verdictRepo, 'backend', 'package.json'))
+        ? join(verdictRepo, 'backend')
+        : verdictRepo;
       const out = execFileSync('npx', ['vitest', 'run', '--reporter=basic'], {
-        cwd: verdictRepo, encoding: 'utf8', timeout: 900_000, maxBuffer: 20 * 1024 * 1024,
+        cwd: suiteRoot, encoding: 'utf8', timeout: 900_000, maxBuffer: 20 * 1024 * 1024,
       });
       const m = /Tests\s+(\d+) passed/.exec(out);
       const failed = /(\d+) failed/.exec(out);
