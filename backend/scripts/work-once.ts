@@ -56,7 +56,7 @@ for (const r of liveRows) {
   };
   const evidence: Evidence[] = rows(
     `select string_agg(objective || '${F}' || kind || '${F}' || computed_at::text || '${F}' || coalesce(run_by, '') || '${F}' || coalesce(source, ''), '~' order by computed_at desc)
-       from evidence where objective = ${lit(lease.objectiveId)}`,
+       from evidence where objective = ${lit(lease.objectiveId)} and task_id = ${lit(lease.taskId)}`,
   ).map((r) => {
     const [objectiveId, kind, computedAt, runBy, source] = parts(r);
     return { objectiveId: objectiveId!, kind: kind!, computedAt: iso(computedAt!), runBy: runBy ?? '', source: source ?? '' };

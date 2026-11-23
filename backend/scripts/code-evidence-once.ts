@@ -85,8 +85,8 @@ for (const { task, seat } of leased) {
   }
   for (const proof of verdict.proofs) {
     sql(
-      `insert into evidence (objective, kind, source, value, run_by, computed_at)
-       select objective_id, ${lit(proof.kind)}, ${lit(proof.source)}, ${proof.value}, ${lit(proof.runBy)}, now()
+      `insert into evidence (objective, kind, source, value, run_by, computed_at, task_id)
+       select objective_id, ${lit(proof.kind)}, ${lit(proof.source)}, ${proof.value}, ${lit(proof.runBy)}, now(), ${lit(task.id)}
          from task where id = ${lit(task.id)}`,
     );
     written += 1;
