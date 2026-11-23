@@ -4,7 +4,7 @@ on conflict (id) do nothing;
 
 -- docs/56 acceptance fixture: one code task that names a repo, one that is a breakdown.
 insert into objective (id, version, owner_tier, statement, metric, source, baseline, target, deadline, status)
-values ('obj.trinketeer.meeniable.code.repo', 1, 't.e2e', 'ship code', 'commits', 'git', 0, 5, now() + interval '30 days', 'active')
+values ('obj.trinketeer.meeniable.code.repo', 1, 't.e2e', 'ship code', 'commits', 'git:rev-list --count HEAD', 0, 5, now() + interval '30 days', 'active')
 on conflict (id, version) do nothing;
 
 insert into task (id, objective_id, objective_version, owner_tier, kind, state, brief, claim_deadline_at, next_action_at, repo)
