@@ -1,18 +1,22 @@
+-- docs/56 acceptance fixture. tier rows first: owner_tier is not null and references tier.
+insert into tier (id, parent, label, ceiling) values ('t.e2e', null, 'e2e tier', '{"tools": [], "spend_usd_per_day": 5}'::jsonb)
+on conflict (id) do nothing;
+
 -- docs/56 acceptance fixture: one code task that names a repo, one that is a breakdown.
 insert into objective (id, version, statement, metric, source, baseline, target, deadline, status)
 values ('obj.trinketeer.meeniable.code.repo', 1, 'ship code', 'commits', 'git', 0, 5, now() + interval '30 days', 'active')
 on conflict (id, version) do nothing;
 
-insert into task (id, objective_id, objective_version, kind, state, brief, claim_deadline_at, next_action_at, repo)
-values ('t.code.e2e', 'obj.trinketeer.meeniable.code.repo', 1, 'code', 'ready', 'prove the producer', now() + interval '1 day', now(), '/home/tenki/clawcrew')
+insert into task (id, objective_id, objective_version, owner_tier, kind, state, brief, claim_deadline_at, next_action_at, repo)
+values ('t.code.e2e', 'obj.trinketeer.meeniable.code.repo', 1, 't.e2e', 'code', 'ready', 'prove the producer', now() + interval '1 day', now(), '/home/tenki/clawcrew')
 on conflict (id) do nothing;
 
-insert into task (id, objective_id, objective_version, kind, state, brief, claim_deadline_at, next_action_at)
-values ('t.code.parent', 'obj.trinketeer.meeniable.code.repo', 1, 'code', 'ready', 'improve the storefront', now() + interval '1 day', now())
+insert into task (id, objective_id, objective_version, owner_tier, kind, state, brief, claim_deadline_at, next_action_at)
+values ('t.code.parent', 'obj.trinketeer.meeniable.code.repo', 1, 't.e2e', 'code', 'ready', 'improve the storefront', now() + interval '1 day', now())
 on conflict (id) do nothing;
 
-insert into task (id, objective_id, objective_version, kind, state, brief, claim_deadline_at, next_action_at, parent_task, repo)
-values ('t.code.parent.1', 'obj.trinketeer.meeniable.code.repo', 1, 'code', 'ready', 'the actual commit', now() + interval '1 day', now(), 't.code.parent', '/home/tenki/clawcrew')
+insert into task (id, objective_id, objective_version, owner_tier, kind, state, brief, claim_deadline_at, next_action_at, parent_task, repo)
+values ('t.code.parent.1', 'obj.trinketeer.meeniable.code.repo', 1, 't.e2e', 'code', 'ready', 'the actual commit', now() + interval '1 day', now(), 't.code.parent', '/home/tenki/clawcrew')
 on conflict (id) do nothing;
 
 insert into seat_shift (seat, slice, on_call) values ('seat.code', 'code', true)
